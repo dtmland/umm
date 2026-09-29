@@ -1,0 +1,72 @@
+# Session 08 — Write commands (`set`, `rm`)
+
+Status: **not started**
+
+## Goal
+
+Write canonical properties through libumm's policy engine: `umm set` and
+`umm rm`. Sequential files only.
+
+## Concept
+
+- §2.1 `umm set FILE PROP=VALUE…`, `umm rm FILE PROP…`
+- §2.2 `--backend`, batch, **no parallel writes in v1**
+- §6 no unmapped write; no ad-hoc tag names
+
+## Prerequisites
+
+Sessions 04–06 (batch driver, formatters, read for round-trip tests).
+
+## In scope
+
+### `umm set FILE PROP=VALUE…`
+
+- Parse `PROP=VALUE` operands as canonical property ids and values. Value
+  parsing must match libumm `Value` types — read the headers (strings,
+  numbers, dates, GPS, etc.). Do not invent a second type system.
+- `umm::read` (or equivalent construct-metadata path if libumm documents one),
+  apply sets on the canonical `Metadata`, then `umm::write`.
+- `--policy embedded|sidecar|sidecar-required|preferred` maps to
+  `StoragePolicy` in `umm/umm.hpp` (`embedded_only`, `sidecar_only`,
+  `sidecar_required`, `preferred`). Use those enum names; CLI flag labels
+  follow the concept table.
+- `--dry-run` sets `WriteOptions::dry_run` and prints the `WriteReport`
+  (human and `--json`).
+- `--backend` → `WriteOptions::backend`.
+
+### `umm rm FILE PROP…`
+
+- Clear properties across all synchronized representations via `umm::write`
+  (libumm write-sync). Not a raw-tag delete.
+- Same `--policy`, `--dry-run`, `--backend`, batch rules as `set`.
+
+### Batch / safety
+
+- Use the session 04 sequential loop. Do not thread or process-pool writes.
+- Per-file atomicity is libumm's; the CLI must not write in place on its own.
+
+## Out of scope
+
+- `merge` / `sync` (session 09).
+- `geotag` (session 10).
+- Unmapped write (forbidden).
+
+## Expected files
+
+- `set` and `rm` command modules
+- Tests: set then read back; dry-run leaves bytes unchanged; rm clears the
+  property; bad property id → documented exit code
+
+## Acceptance
+
+- `umm set photo.jpg iptc.photo.creator=Ada` persists through `umm get`.
+- `--dry-run` prints a `WriteReport` and does not modify the file.
+- `--policy sidecar` does not rewrite embedded bytes when libumm reports
+  sidecar-only (assert via `WriteReport` / sidecar presence).
+- Batch write failures are sequential, summarized, non-zero exit.
+- Unknown / invalid values map to the semantics exit group.
+
+## Validation
+
+- Generated fixtures only (Tier A).
+- `git diff --check`.
