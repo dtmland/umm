@@ -35,9 +35,33 @@ else()
   FetchContent_MakeAvailable(libumm)
 endif()
 
+add_library(umm-cli-core STATIC
+  src/args.cpp
+  src/batch.cpp
+  src/cli.cpp
+  src/command_table.cpp
+  src/commands.cpp
+  src/config.cpp
+  src/errors.cpp
+  src/output.cpp
+  src/property.cpp)
+target_include_directories(umm-cli-core PUBLIC src)
+target_link_libraries(umm-cli-core PUBLIC umm::umm)
+
 add_executable(umm-cli src/main.cpp)
 set_target_properties(umm-cli PROPERTIES OUTPUT_NAME umm)
-target_link_libraries(umm-cli PRIVATE umm::umm)
+target_link_libraries(umm-cli PRIVATE umm-cli-core)
 
 enable_testing()
-add_test(NAME umm_smoke COMMAND umm-cli)
+add_executable(umm-cli-tests tests/cli/test_cli.cpp)
+target_link_libraries(umm-cli-tests PRIVATE umm-cli-core)
+add_test(NAME umm_cli_unit COMMAND umm-cli-tests)
+
+add_test(NAME umm_help COMMAND umm-cli --help)
+add_test(NAME umm_no_command COMMAND umm-cli)
+set_tests_properties(umm_no_command PROPERTIES WILL_FAIL TRUE)
+add_test(NAME umm_unknown_command COMMAND umm-cli not-a-command)
+set_tests_properties(umm_unknown_command PROPERTIES WILL_FAIL TRUE)
+add_test(NAME umm_batch_missing_files
+         COMMAND umm-cli read --json --recursive no-such-1.jpg no-such-2.jpg)
+set_tests_properties(umm_batch_missing_files PROPERTIES WILL_FAIL TRUE)

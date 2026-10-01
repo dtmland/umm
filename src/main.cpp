@@ -1,7 +1,10 @@
-#include <umm/version.hpp>
+#include <iostream>
+#include <string>
+#include <vector>
 
-#if !defined(UMM_VERSION_MAJOR)
-#error "umm/version.hpp must define UMM_VERSION_MAJOR"
-#endif
+#include "cli.hpp"
 
-int main() { return umm::version().empty() ? 1 : 0; }
+int main(int argc, char** argv) {
+  std::vector<std::string> args(argv + 1, argv + argc);
+  return umm_cli::run(args, std::cout, std::cerr);
+}
