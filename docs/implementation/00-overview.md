@@ -56,7 +56,7 @@ New design decisions that cannot be resolved from the concept go under
 
 | # | Document | Stage | Depends | Progress |
 |---|---|---|---|---|
-| 01 | [Project skeleton](01-project-skeleton.md) | 0 Foundation | — | not started |
+| 01 | [Project skeleton](01-project-skeleton.md) | 0 Foundation | — | complete |
 | 02 | [libumm consumption](02-libumm-consumption.md) | 0 Foundation | 01 | not started |
 | 03 | [CI foundation](03-ci-foundation.md) | 0 Foundation | 02 | not started |
 | 04 | [CLI framework](04-cli-framework.md) | 1 Plumbing | 01, 02 | not started |

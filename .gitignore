@@ -1,0 +1,16 @@
+# CMake / build trees
+build/
+out/
+cmake-build-*/
+CMakeUserPresets.json
+CMakeCache.txt
+CMakeFiles/
+_deps/
+.cache/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+.DS_Store
