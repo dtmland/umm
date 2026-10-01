@@ -1,6 +1,6 @@
 # Session 09 — Reconcile commands (`merge`, `sync`)
 
-Status: **not started**
+Status: **complete** (`merge` / `sync` in `src/commands.cpp`; `--container` when a raw key is ambiguous)
 
 ## Goal
 

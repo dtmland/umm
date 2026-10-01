@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -29,6 +30,16 @@ class Json {
 
   // Compact when indent < 0.
   std::string dump(int indent = 2) const;
+
+  bool is_null() const { return std::holds_alternative<std::nullptr_t>(v_); }
+  const bool* as_bool() const { return std::get_if<bool>(&v_); }
+  const double* as_number() const { return std::get_if<double>(&v_); }
+  const std::string* as_string() const { return std::get_if<std::string>(&v_); }
+  const Array* as_array() const { return std::get_if<Array>(&v_); }
+  const Object* as_object() const { return std::get_if<Object>(&v_); }
+
+  // Strict JSON (objects, arrays, strings, numbers, true/false/null).
+  static bool parse(std::string_view text, Json& out, std::string* error);
 
  private:
   void write(std::string& out, int indent, int depth) const;

@@ -63,8 +63,8 @@ New design decisions that cannot be resolved from the concept go under
 | 05 | [Config and output](05-config-and-output.md) | 1 Plumbing | 04 | complete |
 | 06 | [Read commands](06-read-commands.md) | 2 Read | 04, 05 | complete |
 | 07 | [Inspect commands](07-inspect-commands.md) | 2 Read | 06 | complete |
-| 08 | [Write commands](08-write-commands.md) | 3 Write | 04, 05, 06 | not started |
-| 09 | [Reconcile commands](09-reconcile-commands.md) | 3 Write | 07, 08 | not started |
+| 08 | [Write commands](08-write-commands.md) | 3 Write | 04, 05, 06 | complete |
+| 09 | [Reconcile commands](09-reconcile-commands.md) | 3 Write | 07, 08 | complete |
 | 10 | [Geotag](10-geotag.md) | 3 Write | 08 | not started |
 | 11 | [Doctor and setup](11-doctor-and-setup.md) | 4 Tooling | 05, 07 | not started |
 | 12 | [Completions and man pages](12-completions-and-man.md) | 4 Tooling | 04 (after 06–11) | not started |

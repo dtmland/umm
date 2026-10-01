@@ -18,6 +18,8 @@ struct ResolvedProperty {
   std::string name;               // what the user typed
   std::string property_id;        // registry id when addressed by full id; empty for accessors
   AccessorGetter getter{nullptr}; // libumm's public Metadata getter when addressed by accessor
+  umm::Datatype datatype{umm::Datatype::text};
+  bool photo_only{false};  // `rating`
   bool is_accessor() const { return getter != nullptr; }
 };
 
@@ -32,5 +34,11 @@ umm::Result<ResolvedProperty> resolve_property(std::string_view name, umm::Media
 
 // Names of every bound accessor (for tests, help and completions).
 const std::vector<std::string_view>& accessor_names();
+
+// Typed setter / remove through libumm. Accessors use Metadata's public
+// setters (domain already set on `metadata`); full ids use Metadata::set.
+umm::Result<void> apply_set(umm::Metadata& metadata, const ResolvedProperty& property,
+                            const umm::Value& value);
+umm::Result<void> apply_remove(umm::Metadata& metadata, const ResolvedProperty& property);
 
 }  // namespace umm_cli

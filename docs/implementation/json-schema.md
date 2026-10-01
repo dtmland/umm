@@ -36,6 +36,12 @@ object with a `files` array (one entry per file, in operand order).
   sidecar_recommended, backends: [{backend, available, identify_only,
   categories, location, notes}]}`. Access values are `none` / `read` /
   `read_write` / `create`.
+- `--dry-run` on `set` / `rm` / `sync` (and `--json` on those reports) adds
+  `report` per file. Write reports: `{method, backend, formats, written:
+  [{family, key}]}` (`method` is `embedded` / `sidecar` / `mixed`). Sync
+  reports add `carriers: [{container, written}]`.
+- `umm merge --json` may include `report` after a write, or `merged: true` on
+  `--dry-run`.
 
 ## Versioning (concept §7.2)
 
