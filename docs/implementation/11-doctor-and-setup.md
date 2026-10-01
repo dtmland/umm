@@ -1,6 +1,6 @@
 # Session 11 — Doctor and setup (`umm doctor`, `umm setup exiftool`)
 
-Status: **not started**
+Status: **complete** (`install/exiftool.{bat,ps1,sh}`; `doctor` / `setup` in `src/commands.cpp`)
 
 ## Goal
 

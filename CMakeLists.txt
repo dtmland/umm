@@ -48,7 +48,20 @@ add_library(umm-cli-core STATIC
   src/value_format.cpp)
 target_include_directories(umm-cli-core PUBLIC src)
 target_link_libraries(umm-cli-core PUBLIC umm::umm)
-target_compile_definitions(umm-cli-core PUBLIC "UMM_CLI_VERSION=\"${PROJECT_VERSION}\"")
+target_compile_definitions(umm-cli-core PUBLIC
+  "UMM_CLI_VERSION=\"${PROJECT_VERSION}\""
+  "UMM_CLI_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/build/exiftool.env")
+  file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/tools/build/exiftool.env" _et_pin_lines
+       REGEX "^UMM_EXIFTOOL_VERSION=")
+  foreach(_line IN LISTS _et_pin_lines)
+    string(REGEX MATCH "^([A-Z0-9_]+)=(.*)$" _m "${_line}")
+    if(CMAKE_MATCH_1 STREQUAL "UMM_EXIFTOOL_VERSION" AND CMAKE_MATCH_2)
+      target_compile_definitions(umm-cli-core PUBLIC
+        "UMM_EXIFTOOL_TESTED_VERSION=\"${CMAKE_MATCH_2}\"")
+    endif()
+  endforeach()
+endif()
 
 add_executable(umm-cli src/main.cpp)
 set_target_properties(umm-cli PROPERTIES OUTPUT_NAME umm)

@@ -27,6 +27,13 @@ object with a `files` array (one entry per file, in operand order).
   top-level fields next to `schema_version` and `command`. `umm version`
   adds `version` (CLI), `libumm`, and `standards` (`standard`, `version`,
   `source_document` from `Registry::StandardInfo`).
+- `umm doctor` adds `backends` (`id`, `available`, `version`, `reason`),
+  `exiftool` (`discovery` = `config` / `env` / `path` / `not_found`, `path`,
+  `version`, `tested_version`, optional `perl`), `remediation` when ExifTool
+  is missing, and `lost` (live `umm::capabilitiesForType` objects) for types
+  that prefer ExifTool or where Exiv2 is identify-only.
+- `--dry-run --json` on `geotag` adds per-file `gps` (the `GpsCoordinate`
+  that would be written) and `match` (`exact` / `interpolated` / `nearest`).
 - Property ids on `read` are libumm canonical ids, never backend tag names.
 - `umm unmapped` adds `unmapped`: `[{family, key, value}]` per file (not
   canonical property ids).
@@ -36,10 +43,12 @@ object with a `files` array (one entry per file, in operand order).
   sidecar_recommended, backends: [{backend, available, identify_only,
   categories, location, notes}]}`. Access values are `none` / `read` /
   `read_write` / `create`.
-- `--dry-run` on `set` / `rm` / `sync` (and `--json` on those reports) adds
-  `report` per file. Write reports: `{method, backend, formats, written:
-  [{family, key}]}` (`method` is `embedded` / `sidecar` / `mixed`). Sync
-  reports add `carriers: [{container, written}]`.
+- `--dry-run` on `set` / `rm` / `sync` / `geotag` (and `--json` on those
+  reports) adds `report` per file when a write was considered. Write reports:
+  `{method, backend, formats, written: [{family, key}]}` (`method` is
+  `embedded` / `sidecar` / `mixed`). Sync reports add
+  `carriers: [{container, written}]`. `geotag --dry-run` does not call
+  `umm::write`; JSON carries `gps` / `match` instead of `report`.
 - `umm merge --json` may include `report` after a write, or `merged: true` on
   `--dry-run`.
 

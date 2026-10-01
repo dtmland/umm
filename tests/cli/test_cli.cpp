@@ -1,6 +1,9 @@
 // Small self-contained CLI tests (no test framework dependency).
 #include <cstdio>
 #include <cstdlib>
+#ifdef _WIN32
+#include <stdlib.h>
+#endif
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -598,6 +601,127 @@ static void test_merge_sync() {
   fs::remove_all(dir);
 }
 
+static void set_env(const char* key, const char* value) {
+#ifdef _WIN32
+  _putenv_s(key, value);
+#else
+  setenv(key, value, 1);
+#endif
+}
+
+static const char* kGpx = R"(<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="umm-test">
+  <trk><trkseg>
+    <trkpt lat="40.7128" lon="-74.0060"><time>2025-01-15T14:30:00Z</time></trkpt>
+    <trkpt lat="40.7138" lon="-74.0070"><time>2025-01-15T14:32:00Z</time></trkpt>
+  </trkseg></trk>
+</gpx>
+)";
+
+static void test_geotag_doctor_setup() {
+  std::string out, err;
+  CHECK(run_cli({"geotag", "x.jpg"}, nullptr, &err) == to_int(ExitCode::usage));
+  CHECK(err.find("--track") != std::string::npos);
+  CHECK(run_cli({"geotag", "--track", "/no/such-track.gpx", "x.jpg"}, nullptr, &err) ==
+        to_int(ExitCode::io));
+  CHECK(parse_args({"geotag", "--track", "t.gpx", "--offset", "120", "p.jpg"}).options.at("offset") ==
+        "120");
+  CHECK(run_cli({"setup", "not-exiftool"}) == to_int(ExitCode::usage));
+  CHECK(run_cli({"setup", "exiftool", "--help"}, &out) == 0);
+  CHECK(out.find("OliverBetz") != std::string::npos);
+  CHECK(out.find("brew") != std::string::npos);
+  CHECK(out.find("apt") != std::string::npos);
+  CHECK(out.find("dnf") != std::string::npos);
+  CHECK(out.find("pacman") != std::string::npos);
+  CHECK(run_cli({"doctor", "--json"}, &out) == 0);
+  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"command\": \"doctor\"") != std::string::npos);
+  CHECK(out.find("\"discovery\"") != std::string::npos);
+  CHECK(out.find("\"tested_version\"") != std::string::npos);
+  CHECK(run_cli({"doctor"}, &out) == 0);
+  CHECK(out.find("BACKEND") != std::string::npos);
+  CHECK(out.find("discovery") != std::string::npos);
+
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_geotag";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  fs::path gpx = dir / "track.gpx";
+  std::ofstream(gpx) << kGpx;
+  fs::path junk = dir / "not-a-track.txt";
+  std::ofstream(junk) << "hello\n";
+  CHECK(run_cli({"geotag", "--track", junk.string(), (dir / "x.jpg").string()}, nullptr, &err) ==
+        to_int(ExitCode::format));
+
+  fs::path jpg = write_jpeg(dir / "photo.jpg");
+  umm::Metadata probe;
+  CHECK(probe.setDateCreated(umm::DateTime{2025, 1, 15, 14, 30, 0, std::nullopt, 0}).ok());
+  if (!umm::write(jpg, probe).ok()) {
+    std::cerr << "skip geotag fixture write: no metadata backend is available\n";
+  } else {
+    auto before = read_bytes(jpg);
+    CHECK(run_cli({"geotag", "--dry-run", "--track", gpx.string(), jpg.string()}, &out, &err) == 0);
+    CHECK(out.find("40.7128") != std::string::npos);
+    CHECK(read_bytes(jpg) == before);
+    CHECK(run_cli({"geotag", "--dry-run", "--json", "--track", gpx.string(), jpg.string()}, &out) == 0);
+    CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+    CHECK(out.find("\"command\": \"geotag\"") != std::string::npos);
+    CHECK(run_cli({"geotag", "--track", gpx.string(), jpg.string()}, &out, &err) == 0);
+    CHECK(run_cli({"get", jpg.string(), "gps"}, &out) == 0);
+    CHECK(out.find("40.7128") != std::string::npos);
+
+    fs::path naive = write_jpeg(dir / "naive.jpg");
+    umm::DateTime naive_dt{2025, 1, 15, 14, 30, 0, std::nullopt, std::nullopt};
+    umm::Metadata nmeta;
+    CHECK(nmeta.setDateCreated(naive_dt).ok());
+    if (umm::write(naive, nmeta).ok()) {
+      int rc = run_cli({"geotag", "--track", gpx.string(), naive.string()}, nullptr, &err);
+      CHECK(rc == to_int(ExitCode::semantics));
+      CHECK(run_cli({"geotag", "--offset", "0", "--track", gpx.string(), naive.string()}) == 0);
+    }
+  }
+
+#ifdef UMM_LIBUMM_FIXTURES
+  {
+    fs::path src = fs::path(UMM_LIBUMM_FIXTURES) / "video" / "minimal.mp4";
+    if (fs::exists(src)) {
+      fs::path mp4 = dir / "video.mp4";
+      fs::copy_file(src, mp4, fs::copy_options::overwrite_existing);
+      umm::Metadata vmeta;
+      vmeta.setMediaDomain(umm::MediaDomain::video);
+      umm::DateTime dt{2025, 1, 15, 14, 30, 0, std::nullopt, 0};
+      if (vmeta.setDateCreated(dt).ok() && umm::write(mp4, vmeta).ok()) {
+        int rc = run_cli({"geotag", "--track", gpx.string(), mp4.string()}, &out, &err);
+        if (rc == 0) {
+          CHECK(run_cli({"get", mp4.string(), "gps"}, &out) == 0);
+          CHECK(out.find("40.7128") != std::string::npos);
+        } else {
+          std::cerr << "skip video geotag: " << err << "\n";
+        }
+      }
+    }
+  }
+#endif
+
+  fs::path cfgdir = fs::temp_directory_path() / "umm_cli_test_setupcfg";
+  fs::remove_all(cfgdir);
+  fs::create_directories(cfgdir);
+#ifdef _WIN32
+  set_env("APPDATA", cfgdir.string().c_str());
+#else
+  set_env("XDG_CONFIG_HOME", cfgdir.string().c_str());
+#endif
+  fs::path dummy = dir / "fake-exiftool";
+  std::ofstream(dummy) << "#!/bin/sh\n";
+  int setup_rc = run_cli({"setup", "exiftool", "--", "--record", dummy.string()}, &out, &err);
+  if (setup_rc != 0) std::cerr << "setup --record rc=" << setup_rc << " err=" << err << " out=" << out << "\n";
+  CHECK(setup_rc == 0);
+  ConfigParse written = load_config(current_platform(), process_env());
+  CHECK(written.error.empty());
+  CHECK(written.config.exiftool == dummy);
+  fs::remove_all(cfgdir);
+  fs::remove_all(dir);
+}
+
 int main() {
   test_version_linked();
   test_command_table();
@@ -615,6 +739,7 @@ int main() {
   test_parse_value();
   test_set_rm();
   test_merge_sync();
+  test_geotag_doctor_setup();
   if (failures) std::cerr << failures << " check(s) failed\n";
   return failures ? 1 : 0;
 }
