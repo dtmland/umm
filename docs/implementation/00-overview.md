@@ -21,7 +21,11 @@ These apply to every session:
 - **Thin CLI.** No metadata semantics, reconciliation, mapping, or backend
   logic in this repo. Call libumm; format and orchestrate.
 - **Canonical vocabulary.** IPTC Photo, IPTC Video Metadata Hub, EXIF property
-  ids from libumm. No ad-hoc tag names on the command line. Unmapped display
+  ids from libumm, plus libumm's convenience accessors (`creator`, `gps`, …;
+  concept §2.3). The CLI features **every** accessor libumm ships and
+  resolves them through libumm (`MediaDomain`, typed accessors/registry in the
+  pinned headers) — never a CLI-side copy of the accessor table. No ad-hoc tag
+  names on the command line. Unmapped display
   only (`umm unmapped`); no unmapped write.
 - **Error model.** No exceptions across the libumm boundary. Map `umm::Result`
   / `umm::ErrorCode` to the CLI exit-code contract (session 04). The CLI may
@@ -41,7 +45,7 @@ These apply to every session:
   Python helper.
 - **Command table.** Single source of truth for the CLI surface, completions,
   and `umm(1)`.
-- **v1 non-goals** (concept §6 and §2.2): no GUI, watch mode, database, asset
+- **v1 non-goals** (concept §6 and §2.6): no GUI, watch mode, database, asset
   management, thumbnailing, transcoding, image processing, long-running
   daemon, or package-manager publication of umm itself.
 
@@ -78,17 +82,20 @@ rows when splitting or merging work.
 | Concept | Sessions |
 |---|---|
 | §1 Purpose (thin CLI, canonical model) | 00, all |
-| §2.1 `read`, `get`, `version` | 06 |
-| §2.1 `unmapped`, `conflicts`, `caps` | 07 |
-| §2.1 `set`, `rm` | 08 |
-| §2.1 `merge`, `sync` | 09 |
-| §2.1 `geotag` | 10 |
-| §2.1 `doctor`, `setup exiftool` | 11 |
-| §2.2 `--json` | 05 (schema), 06–07, 11 (read-type) |
-| §2.2 `--backend` | 04, 06–10 |
-| §2.2 batch, globs, `--recursive`, no parallel writes | 04, 08–10 |
-| §2.2 exit-code contract | 04, 15 |
-| §2.2 no GUI / watch / database / asset management | 00 (non-goals) |
+| §2.2 `read`, `get`, `version` | 06 |
+| §2.2 `unmapped`, `conflicts`, `caps` | 07 |
+| §2.2 `set`, `rm` | 08 |
+| §2.2 `merge`, `sync` | 09 |
+| §2.2 `geotag`, §2.4 GPS/timestamps | 10 (workflow), 08 (direct `gps`/`dateCreated` set) |
+| §2.1 `read`/`get`/`set`/`rm` vocabulary (no `umm write`) | 04, 06, 08 |
+| §2.3 convenience accessors + full ids (every libumm accessor) | 04 (resolver seam), 06, 08 |
+| §2.5 struct / bag value syntax (`--json`) | 06, 08 |
+| §2.2 `doctor`, `setup exiftool` | 11 |
+| §2.6 `--json` | 05 (schema), 06–07, 11 (read-type) |
+| §2.6 `--backend` | 04, 06–10 |
+| §2.6 batch, globs, `--recursive`, no parallel writes | 04, 08–10 |
+| §2.6 exit-code contract | 04, 15 |
+| §2.6 no GUI / watch / database / asset management | 00 (non-goals) |
 | §3.1 FetchContent pin, `libumm.env`, static link | 02 |
 | §3.2 `find_package` / `UMM_CLI_USE_SYSTEM_LIBUMM` | 02, 03 |
 | §3.3 version and standards reporting | 06 |

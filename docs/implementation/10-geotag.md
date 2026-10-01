@@ -9,9 +9,10 @@ positions through `umm::write`. No track-specific write path in the CLI.
 
 ## Concept
 
-- §2.1 `umm geotag --track T.gpx FILE…` via `umm::importTrack` /
+- §2.2 `umm geotag --track T.gpx FILE…` via `umm::importTrack` /
   `matchTrack` / `write`; `--offset` for naive timestamps
-- §2.2 `--backend`, batch, no parallel writes, `--json` for reports
+- §2.4 GPS, timestamps, and geotag (workflow vs. direct `gps` set)
+- §2.6 `--backend`, batch, no parallel writes, `--json` for reports
 
 ## Prerequisites
 
@@ -36,7 +37,12 @@ Session 08 (write path). Read `umm/track.hpp` in pinned libumm.
   offset (do not assume UTC).
 - Sequential files only.
 
+- Photos and video both; read back with `umm get FILE gps` (or
+  `exif.gps.position`).
+
 ## Out of scope
+
+- Direct coordinate writes (`umm set … gps=…`) — session 08.
 
 - Bundling tracks or map UIs.
 - Implementing GPX/NMEA/KML parsers in this repo.

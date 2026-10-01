@@ -9,7 +9,7 @@ default, `--json` with `schema_version` on every read-type command.
 
 ## Concept
 
-- §2.2 `--json` on every read-type command; stable schema documented
+- §2.6 `--json` on every read-type command; stable schema documented
   alongside the tool
 - §4.2 discovery order: explicit config → `UMM_EXIFTOOL` → PATH; config is
   how `umm setup` records the binary (setup itself is session 11)
@@ -53,6 +53,8 @@ Session 04 (flags and dispatch exist).
   reports from write/sync/geotag (those commands land later; the formatter
   API must be ready).
 - Do not print backend-specific tag names as the primary vocabulary.
+- Struct-valued properties: compact summary in the human table, full JSON
+  object/array with `--json` (concept §2.5). Formatter API must support both.
 
 ## Out of scope
 

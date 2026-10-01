@@ -1,6 +1,7 @@
 # umm — command-line media metadata tool: concept document
 
-Status: **founding design**. Lifted from libumm's `docs/umm-cli-concept.md`.
+Status: **founding design**. Lifted from libumm's `docs/umm-cli-concept.md` and re-synced with its current
+version (convenience accessors, `get`/`set` split, GPS/struct value syntax).
 This is the authoritative feature set and consumption model for the `umm` CLI.
 Implementation is executed as session-sized work packages under
 [docs/implementation/](implementation/).
@@ -20,33 +21,174 @@ contributes argument parsing, output formatting, batch orchestration, and enviro
 
 ## 2. Feature set
 
-### 2.1 Core commands
+### 2.1 Command vocabulary: inspect vs. mutate, dump vs. property
+
+libumm uses `umm::read` / `umm::write` for file I/O and `Metadata::get` / `Metadata::set`
+(plus typed accessors) for properties. The CLI keeps that split and does **not** expose a
+`umm write` command.
+
+| CLI command | Role | Backing libumm API |
+|---|---|---|
+| `umm read` | Dump **all** canonical metadata for a file (human table or `--json`) | `umm::read` |
+| `umm get` | Retrieve **named properties** (convenience accessor or full property id) | `umm::read` + `Metadata::get` / typed accessors |
+| `umm set` | Assign **named properties** and persist | `Metadata::set` / typed setters, then `umm::write` |
+| `umm rm` | Clear named properties and persist | `Metadata::remove`, then `umm::write` |
+
+Other mutating commands (`merge`, `sync`, `geotag`) also persist through `umm::write`; they are
+not aliases of `set`. `umm read` is not an alias of `umm get`: `read` prints the whole
+document; `get` prints only the requested properties and exits non-zero if a requested property
+is absent.
+
+### 2.2 Core commands
 
 | Command | Backing libumm API | Sketch |
 |---|---|---|
 | `umm read FILE…` | `umm::read` | Print canonical metadata (human table by default, `--json` for machine output) with provenance (`--sources`) and resolution states. |
-| `umm get FILE PROPERTY…` | `umm::read` | Print one or more property values (`umm get photo.jpg iptc.photo.creator`), exit non-zero if absent. |
-| `umm set FILE PROP=VALUE…` | `umm::write` | Write canonical properties through the policy engine; `--policy embedded\|sidecar\|sidecar-required\|preferred`, `--dry-run` prints the `WriteReport`. |
-| `umm rm FILE PROP…` | `umm::write` | Clear properties across all synchronized representations. |
+| `umm get FILE PROPERTY…` | `umm::read` | Print one or more property values by convenience accessor (`creator`) or full id (`iptc.photo.creator`); exit non-zero if absent. |
+| `umm set FILE ASSIGN…` | `umm::write` | Write canonical properties through the policy engine (`creator="Jane"` or `iptc.photo.creator="Jane"`; structs use `--json`); `--policy embedded\|sidecar\|sidecar-required\|preferred`, `--dry-run` prints the `WriteReport`. |
+| `umm rm FILE PROP…` | `umm::write` | Clear properties across all synchronized representations (accessor or full id). |
 | `umm unmapped FILE` | `Metadata::unmapped()` | Dump every unmapped entry (family, key, value) — libumm's escape hatch, read-only. |
 | `umm conflicts FILE` | `umm::detectConflict` | List disagreeing properties with each candidate source; `--fail-on-conflict` for scripting. |
-| `umm merge FILE PROP --use RAWKEY\|--value V` | `umm::merge` + `umm::write` | Resolve a conflict by choosing a candidate or supplying an override, then persist. |
+| `umm merge FILE PROP --use RAWKEY\|--value V` | `umm::merge` + `umm::write` | Resolve a conflict by choosing a candidate or supplying an override, then persist. `PROP` is a full property id. |
 | `umm sync FILE` | `umm::synchronize` | Make embedded and sidecar carriers agree; `--direction both\|embedded-to-sidecar\|sidecar-to-embedded`, `--dry-run`. |
 | `umm caps FILE\|TYPE` | `umm::capabilities` | Show per-backend, per-category capability rows for a file or type — the supported-types answer, live. |
-| `umm geotag --track T.gpx FILE…` | `umm::importTrack` / `matchTrack` / `write` | Correlate capture times with a GPX/NMEA/KML track and write positions; `--offset` for naive timestamps. |
+| `umm geotag --track T.gpx FILE…` | `umm::importTrack` / `matchTrack` / `write` | Correlate capture times with a GPX/NMEA/KML track and write `exif.gps.position`; `--offset` for naive timestamps. Workflow command, not a property accessor. |
 | `umm doctor` | backend availability + discovery | Report which backends are usable, which ExifTool/Perl was found and via which discovery step, and how to fix problems. |
 | `umm setup exiftool` | (tooling, §4.2) | Install ExifTool for the current user via the CLI's native install scripts. |
 | `umm version` | `umm::version()` + `Registry::standards()` | Tool version, libumm version, and the standards/versions implemented. |
 
-### 2.2 Cross-cutting behavior
+### 2.3 Property IDs and convenience accessors
 
-- `--json` on every read-type command; stable schema documented alongside the tool.
+The CLI offers the same two addressing styles as `umm::Metadata`: **typed convenience
+accessors** for cross-media concepts (and the photo-only `rating`), and **full canonical
+property ids** for every registry property. Both work on `get`, `set`, and `rm`; `merge` takes
+a full id.
+
+`umm set FILE key=value` uses the same accessor names as the C++ API for both photo and video
+files:
+
+    umm set photo.jpg creator="Jane Doe" keywords="nature,landscape" dateCreated="2025-01-15"
+    umm set video.mp4 creator="Jane Doe" keywords="nature,landscape" dateCreated="2025-01-15"
+
+Short accessor names resolve through `MediaDomain`: unknown/default domain writes photo ids;
+video files sniffed by `umm::read` set `MediaDomain::video`, so the same accessor name stores
+`iptc.video.*`. Full ids always work and never retarget the other domain
+(`iptc.photo.creator=…` / `iptc.video.creator=…`). `rating` stays photo-only
+(`iptc.photo.imageRating`). `gps` is the well-known `exif.gps.position`. `objectShown` is
+deferred.
+
+Convenience accessors (1:1 with the C++ typed API; photo id shown, video id when the concept is
+cross-media):
+
+| Accessor | Photo id | Video id |
+|---|---|---|
+| `creator` | `iptc.photo.creator` | `iptc.video.creator` |
+| `description` | `iptc.photo.description` | `iptc.video.description` |
+| `headline` | `iptc.photo.headline` | `iptc.video.headline` |
+| `dateCreated` | `iptc.photo.dateCreated` | `iptc.video.dateCreated` |
+| `copyrightNotice` | `iptc.photo.copyrightNotice` | `iptc.video.copyrightNotice` |
+| `creditLine` | `iptc.photo.creditLine` | `iptc.video.creditLine` |
+| `keywords` | `iptc.photo.keywords` | `iptc.video.keywords` |
+| `title` | `iptc.photo.title` | `iptc.video.title` |
+| `locationCreated` | `iptc.photo.locationCreated` | `iptc.video.locationShot` |
+| `shownEvent` | `eventName` + `eventIdentifier` | `iptc.video.shownEvent` |
+| `assetIdentifier` | `iptc.photo.digitalImageGuid` | `iptc.video.videoIdentifier` |
+| `rating` | `iptc.photo.imageRating` | — |
+| `gps` | `exif.gps.position` | `exif.gps.position` |
+
+The remaining Tier 1–3 accessors (`altTextAccessibility`, `personShown`, `supplier`, …) follow
+the same rule; see libumm's `docs/user/guide.md` "Cross-media accessors". The CLI **features
+every accessor libumm ships** and does not maintain its own copy of the mapping: accessor
+names, domain resolution, and transposition come from libumm's pinned headers/registry, so a
+libumm pin bump picks up new accessors without CLI metadata logic.
+
+    # Convenience accessors
+    umm get photo.jpg creator
+    umm set photo.jpg creator="John Doe"
+
+    # Full canonical property ids (precision, video, or no accessor)
+    umm get photo.jpg iptc.photo.creator
+    umm get video.mp4 iptc.video.creator --json
+
+Discover what is present on a file with `umm read FILE --json` (full dump) or `umm caps FILE`
+(what the backends can store). `umm get` is for known names.
+
+### 2.4 GPS, timestamps, and geotag
+
+GPS coordinates and capture time are ordinary properties. `umm geotag` is a **workflow** on top
+of `umm::importTrack` / `matchTrack` / `umm::write`: it matches file capture times to a track
+and then writes `exif.gps.position`. It does not replace `umm set` when coordinates are known.
+
+    umm get photo.jpg gps
+    umm set photo.jpg gps="40.7128,-74.0060"
+    umm set photo.jpg exif.gps.position="40.7128,-74.0060"
+    umm set video.mp4 exif.gps.position="40.7128,-74.0060"   # or gps=
+    umm get photo.jpg dateCreated
+    umm set photo.jpg dateCreated="2025-01-15T14:30:00Z"
+    umm set video.mp4 iptc.video.dateReleased="2025-01-20T00:00:00Z"  # no photo equivalent
+
+    # Correlate capture time with a GPX/NMEA/KML track, then persist
+    umm geotag --track hike.gpx photo1.jpg photo2.jpg
+    umm geotag --track hike.gpx --offset=120 photo.jpg
+    umm geotag --track hike.gpx --dry-run photo.jpg
+    umm geotag --track video_track.gpx video.mp4
+
+`--offset` supplies `MatchOptions::naive_utc_offset_minutes` when the media timestamp has no
+zone (libumm will not assume naive times are UTC). `--dry-run` prints the intended GPS writes
+without calling `umm::write`.
+
+### 2.5 Value syntax: scalars, bags, and structs
+
+Scalar and bag-of-string properties use `PROP=VALUE` (or repeated values as the type requires).
+Structure properties take `--json` with an object or array matching the registry struct.
+
+    umm get photo.jpg locationCreated
+    umm set photo.jpg locationCreated --json '{"name":"NYC","countryCode":"US"}'
+    umm set photo.jpg iptc.photo.locationCreated --json '[{"name":"NYC","countryCode":"US"}]'
+    umm set photo.jpg iptc.photo.creatorsContactInfo --json '{"email":"jane@example.com"}'
+    umm set video.mp4 iptc.video.contributor --json '[{"name":"Alice","role":"director"}]'
+
+`umm get` on a struct prints a compact summary by default and the JSON object/array with
+`--json`.
+
+### 2.6 Cross-cutting behavior
+
+- `--json` on every inspect command (`read`, `get`, `unmapped`, `conflicts`, `caps`, `version`,
+  and `--dry-run` reports); stable schema documented alongside the tool.
+- Property addressing: convenience accessors for cross-media concepts; full ids for explicit
+  control or properties without an accessor (§2.3).
 - `--backend exiv2|exiftool` passes through to `ReadOptions/WriteOptions` for verification
   workflows (write with one, read with the other).
 - Batch: file globs, `--recursive`, and non-zero exit summarizing per-file failures. No parallel
   writes in v1 (write safety is per-file atomic; concurrency adds nothing but risk).
 - Exit-code contract mapped from `umm::ErrorCode` groups, documented for scripting.
 - No GUI, no watch mode, no database, no asset management.
+
+Example workflows:
+
+    # Photo (accessors)
+    umm set photo.jpg creator="Jane" keywords="hiking" dateCreated="2025-01-15T14:30:00Z"
+    umm geotag --track hike.gpx photo.jpg
+    umm get photo.jpg creator keywords gps
+
+    # Video (full ids)
+    umm set video.mp4 iptc.video.creator --json '{"name":"Director","role":"director"}'
+    umm set video.mp4 iptc.video.dateCreated="2025-01-15T14:30:00Z"
+    umm geotag --track video_track.gpx video.mp4
+    umm get video.mp4 iptc.video.creator iptc.video.dateCreated exif.gps.position
+
+    # Bulk set with capability check
+    umm caps photo.jpg
+    umm set photo1.jpg photo2.jpg creator="Photographer" keywords="event"
+
+    # Resolve conflicts
+    umm conflicts photo.jpg
+    umm merge photo.jpg iptc.photo.creator --use exif.image.artist
+
+    # Mixed accessors + explicit ids
+    umm set photo.jpg creator="Jane" headline="Summit" \
+      iptc.photo.creatorsContactInfo --json '{"email":"jane@example.com"}' \
+      iptc.photo.locationCreated --json '{"name":"Mt. Rainier"}'
 
 ## 3. How umm depends on libumm
 

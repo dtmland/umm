@@ -10,7 +10,7 @@ reports discovery and remediation. Never bundle or redistribute ExifTool.
 
 ## Concept
 
-- §2.1 `umm doctor`, `umm setup exiftool`
+- §2.2 `umm doctor`, `umm setup exiftool`
 - §4.2 full ExifTool policy (discovery, scripts, winget/brew/apt, checksum
   fallbacks, config recording, no PATH mutation, license)
 - §4.3 degraded modes; `--backend exiftool` with no ExifTool fails with

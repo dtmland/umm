@@ -11,7 +11,7 @@ build time. Ship them in later release archives (session 14).
 
 - §7.4 generate both from the command table at build time (single source of
   truth); ship bash/zsh/fish completions and `umm(1)` in release archives
-- §2.1 / session 04 command table
+- §2.2 / session 04 command table
 
 ## Prerequisites
 
@@ -29,6 +29,9 @@ can follow 11.
   - zsh completion
   - fish completion
   - `umm(1)` man page (section 1)
+- Completions offer the convenience accessor names (and full-id prefixes
+  `iptc.photo.`, `iptc.video.`, `exif.`) for `get`/`set`/`rm`, generated from
+  libumm's accessor list at build time, not a hand-maintained copy.
 - CMake install rules for completions and the man page (standard locations).
 - Completions cover subcommands and the flags in the table (`--json`,
   `--backend`, `--recursive`, `--policy`, `--dry-run`, `--sources`,

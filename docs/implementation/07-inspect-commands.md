@@ -10,8 +10,8 @@ capabilities. Degraded-mode visibility for missing ExifTool starts here via
 
 ## Concept
 
-- §2.1 `umm unmapped FILE`, `umm conflicts FILE`, `umm caps FILE|TYPE`
-- §2.2 `--json`, `--backend`, batch
+- §2.2 `umm unmapped FILE`, `umm conflicts FILE`, `umm caps FILE|TYPE`
+- §2.6 `--json`, `--backend`, batch
 - §4.3 degraded modes: `umm caps` / `umm doctor` say what is lost without
   ExifTool (`doctor` in session 11)
 

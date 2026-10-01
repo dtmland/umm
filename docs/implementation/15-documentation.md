@@ -33,6 +33,11 @@ it into the audience trees below rather than leaving two sources of truth.
 - `docs/developer/` — working on umm itself
 - Root `README.md` — short, example-heavy, links into `docs/`
 
+Document the accessor vs. full-id addressing model (concept §2.3) with a
+photo and a video example each, GPS/date examples (§2.4), and struct `--json`
+values (§2.5). Link to libumm's "Cross-media accessors" guide for the full
+accessor table rather than copying it.
+
 Do not copy libumm's property encyclopedia. Link to libumm user docs for
 canonical property semantics.
 
@@ -41,7 +46,7 @@ canonical property semantics.
 - Getting started: install a release binary (or build), `umm doctor`,
   `umm setup exiftool` if needed, `umm version`, first `umm read` / `umm get`
   / `umm set`.
-- Command reference: every §2.1 command with flags from the command table
+- Command reference: every §2.2 command with flags from the command table
   (keep aligned with `umm(1)`; do not contradict).
 - Examples (real command lines, generated-fixture style files in prose):
   - read + `--sources` + `--json`
@@ -114,7 +119,7 @@ Keep the README under ~100–120 lines. Details live in `docs/`.
 
 ## Acceptance
 
-- Every §2.1 command appears in user docs with an example.
+- Every §2.2 command appears in user docs with an example.
 - Exit codes, JSON `schema_version`, config paths, doctor/setup, GPL binary
   note, and non-goals are written down.
 - README runs a new user through doctor → read → get → set without
@@ -125,6 +130,6 @@ Keep the README under ~100–120 lines. Details live in `docs/`.
 ## Validation
 
 - Read each new doc end-to-end; grep docs for each command name.
-- Confirm examples use canonical property ids (`iptc.photo.*`, `exif.gps.*`,
+- Confirm examples use convenience accessors or canonical property ids (`iptc.photo.*`, `exif.gps.*`,
   `iptc.video.*`), not ExifTool tag names.
 - `git diff --check`.
