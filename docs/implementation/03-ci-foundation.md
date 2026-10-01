@@ -1,6 +1,6 @@
 # Session 03 — CI foundation
 
-Status: **not started**
+Status: **in progress** (workflow written and contract-tested; CI run not yet observed)
 
 ## Goal
 

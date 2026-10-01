@@ -38,3 +38,6 @@ endif()
 add_executable(umm-cli src/main.cpp)
 set_target_properties(umm-cli PROPERTIES OUTPUT_NAME umm)
 target_link_libraries(umm-cli PRIVATE umm::umm)
+
+enable_testing()
+add_test(NAME umm_smoke COMMAND umm-cli)

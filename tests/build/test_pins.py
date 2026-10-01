@@ -44,5 +44,41 @@ class PinContract(unittest.TestCase):
             self.assertNotIn(dep, text)
 
 
+CI = ROOT / ".github" / "workflows" / "ci.yml"
+
+
+class WorkflowContract(unittest.TestCase):
+    def setUp(self):
+        self.text = CI.read_text()
+
+    def test_three_oses_and_no_fail_fast(self):
+        for os_name in ("ubuntu-", "windows-", "macos-"):
+            self.assertRegex(self.text, r"-\s+" + os_name)
+        self.assertIn("fail-fast: false", self.text)
+
+    def test_permissions_and_concurrency(self):
+        self.assertRegex(self.text, r"(?m)^permissions:\n  contents: read$")
+        self.assertIn("cancel-in-progress", self.text)
+
+    def test_contract_tests_precede_configure(self):
+        contract = "python3 -m unittest discover -s tests/build"
+        self.assertIn(contract, self.text)
+        self.assertLess(self.text.index(contract), self.text.index("cmake --preset"))
+        self.assertLess(self.text.index(contract), self.text.index("tools/build/pins.sh"))
+
+    def test_backends_required(self):
+        self.assertIn("-DUMM_REQUIRE_EXIV2=ON", self.text)
+        self.assertIn("-DUMM_REQUIRE_EXIFTOOL=ON", self.text)
+
+    def test_system_libumm_job(self):
+        self.assertIn("-DUMM_CLI_USE_SYSTEM_LIBUMM=ON", self.text)
+        self.assertIn("sha256sum -c", self.text)
+
+    def test_pins_script_requires_keys(self):
+        script = (ROOT / "tools" / "build" / "pins.sh").read_text()
+        for key in read_env():
+            self.assertIn(key, script)
+
+
 if __name__ == "__main__":
     unittest.main()
