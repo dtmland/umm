@@ -1,6 +1,6 @@
 # Session 06 — Read commands (`version`, `read`, `get`)
 
-Status: **not started**
+Status: **complete** (`umm version` / `read` / `get` in `src/commands.cpp`; value JSON/summary in `src/value_format.*`)
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # Session 07 — Inspect commands (`unmapped`, `conflicts`, `caps`)
 
-Status: **not started**
+Status: **complete** (`unmapped` / `conflicts` / `caps` in `src/commands.cpp`)
 
 ## Goal
 

@@ -113,6 +113,20 @@ std::string format_table(const std::vector<FileReport>& files, const std::vector
   return out;
 }
 
+std::string format_values(const std::vector<FileReport>& files) {
+  std::string out;
+  const bool headers = files.size() > 1;
+  for (const FileReport& f : files) {
+    if (headers) out += "== " + f.path + " ==\n";
+    if (!f.ok) {
+      out += "error: " + f.error + "\n";
+      continue;
+    }
+    for (const PropertyRow& p : f.properties) out += p.summary + "\n";
+  }
+  return out;
+}
+
 Json make_document(const std::string& command, const std::vector<FileReport>& files, Json::Object extra) {
   Json::Object doc;
   doc.emplace_back("schema_version", Json(kSchemaVersion));
@@ -123,18 +137,21 @@ Json make_document(const std::string& command, const std::vector<FileReport>& fi
     Json::Object fo;
     fo.emplace_back("path", Json(f.path));
     fo.emplace_back("ok", Json(f.ok));
-    if (!f.ok) {
-      fo.emplace_back("error", Json(f.error));
-    } else {
+    if (!f.ok) fo.emplace_back("error", Json(f.error));
+    // Always emit properties for a successful dump with no extra payload
+    // (e.g. empty `umm read`). Inspect commands attach json_extra instead.
+    if (!f.properties.empty() || (f.ok && f.json_extra.empty())) {
       Json::Array props;
       for (const PropertyRow& p : f.properties) {
         Json::Object po;
         po.emplace_back("id", Json(p.id));
         po.emplace_back("value", p.value);
+        for (const auto& kv : p.json_extra) po.push_back(kv);
         props.emplace_back(std::move(po));
       }
       fo.emplace_back("properties", Json(std::move(props)));
     }
+    for (const auto& kv : f.json_extra) fo.push_back(kv);
     arr.emplace_back(std::move(fo));
   }
   if (!files.empty()) doc.emplace_back("files", Json(std::move(arr)));

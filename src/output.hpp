@@ -44,6 +44,7 @@ struct PropertyRow {
   Json value;
   std::string summary;
   std::vector<std::string> extra;  // extra human columns (e.g. source, state)
+  Json::Object json_extra;         // merged into the JSON property object
 };
 
 struct FileReport {
@@ -51,11 +52,15 @@ struct FileReport {
   bool ok{true};
   std::string error;  // when !ok
   std::vector<PropertyRow> properties;
+  Json::Object json_extra;  // merged into the JSON file object (session 07+)
 };
 
 // Human table: "id  value  [extra...]", aligned. Multi-file output is
 // separated by a "== path ==" header; failed files print their error.
 std::string format_table(const std::vector<FileReport>& files, const std::vector<std::string>& extra_headers = {});
+
+// `umm get` human form: values only (one summary per requested property).
+std::string format_values(const std::vector<FileReport>& files);
 
 // One JSON document per invocation:
 //   {"schema_version":1,"command":"read","files":[{"path":..,"ok":true,
