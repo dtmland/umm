@@ -1,6 +1,6 @@
 # Session 02 — libumm consumption
 
-Status: **not started**
+Status: **complete**
 
 ## Goal
 
