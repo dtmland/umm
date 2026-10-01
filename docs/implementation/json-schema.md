@@ -28,6 +28,14 @@ object with a `files` array (one entry per file, in operand order).
   adds `version` (CLI), `libumm`, and `standards` (`standard`, `version`,
   `source_document` from `Registry::StandardInfo`).
 - Property ids on `read` are libumm canonical ids, never backend tag names.
+- `umm unmapped` adds `unmapped`: `[{family, key, value}]` per file (not
+  canonical property ids).
+- `umm conflicts` adds `conflicts`: `[{property_id, resolution,
+  preferred_source, candidates: [{value, family, primary_key, sources}]}]`.
+- `umm caps` adds `capabilities`: `{file_type, preferred_backend,
+  sidecar_recommended, backends: [{backend, available, identify_only,
+  categories, location, notes}]}`. Access values are `none` / `read` /
+  `read_write` / `create`.
 
 ## Versioning (concept §7.2)
 

@@ -351,6 +351,52 @@ static void test_read_get() {
   fs::remove_all(dir);
 }
 
+static void test_inspect() {
+  std::string out, err;
+  CHECK(run_cli({"caps", "JPEG"}, &out) == 0);
+  CHECK(out.find("TYPE") != std::string::npos && out.find("JPEG") != std::string::npos);
+  CHECK(out.find("exiv2") != std::string::npos);
+  CHECK(run_cli({"caps", "--json", "JPEG"}, &out) == 0);
+  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"command\": \"caps\"") != std::string::npos);
+  CHECK(out.find("\"capabilities\"") != std::string::npos);
+  CHECK(run_cli({"caps", "not-a-real-type"}, nullptr, &err) != 0);
+
+#ifdef UMM_LIBUMM_FIXTURES
+  fs::path fixtures = UMM_LIBUMM_FIXTURES;
+  fs::path unknown = fixtures / "jpeg" / "unknown-tags.jpg";
+  fs::path conflict = fixtures / "jpeg" / "full-conflicting.jpg";
+  fs::path minimal = fixtures / "jpeg" / "minimal.jpg";
+  if (fs::exists(unknown) && backend_available("exiv2")) {
+    CHECK(run_cli({"unmapped", unknown.string()}, &out) == 0);
+    CHECK(out.find("FAMILY") != std::string::npos);
+    CHECK(run_cli({"unmapped", "--json", unknown.string()}, &out) == 0);
+    CHECK(out.find("\"unmapped\"") != std::string::npos);
+    CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  } else {
+    std::cerr << "skip unmapped fixture\n";
+  }
+  if (fs::exists(conflict) && backend_available("exiv2")) {
+    CHECK(run_cli({"conflicts", conflict.string()}, &out) == 0);
+    CHECK(run_cli({"conflicts", "--json", conflict.string()}, &out) == 0);
+    CHECK(out.find("\"conflicts\"") != std::string::npos);
+    CHECK(run_cli({"conflicts", "--fail-on-conflict", conflict.string()}) ==
+          to_int(ExitCode::semantics));
+  } else {
+    std::cerr << "skip conflicts fixture\n";
+  }
+  if (fs::exists(minimal)) {
+    CHECK(run_cli({"caps", minimal.string()}, &out) == 0);
+    CHECK(out.find("JPEG") != std::string::npos);
+  }
+#else
+  std::cerr << "skip unmapped/conflicts fixtures (no libumm source dir)\n";
+#endif
+
+  // unmapped never writes: a missing file is I/O, not a mutation.
+  CHECK(run_cli({"unmapped", "/no/such/unmapped.jpg"}, nullptr, &err) == to_int(ExitCode::io));
+}
+
 int main() {
   test_version_linked();
   test_command_table();
@@ -364,6 +410,7 @@ int main() {
   test_value_format();
   test_version_command();
   test_read_get();
+  test_inspect();
   if (failures) std::cerr << failures << " check(s) failed\n";
   return failures ? 1 : 0;
 }

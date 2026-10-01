@@ -62,7 +62,7 @@ New design decisions that cannot be resolved from the concept go under
 | 04 | [CLI framework](04-cli-framework.md) | 1 Plumbing | 01, 02 | complete |
 | 05 | [Config and output](05-config-and-output.md) | 1 Plumbing | 04 | complete |
 | 06 | [Read commands](06-read-commands.md) | 2 Read | 04, 05 | complete |
-| 07 | [Inspect commands](07-inspect-commands.md) | 2 Read | 06 | not started |
+| 07 | [Inspect commands](07-inspect-commands.md) | 2 Read | 06 | complete |
 | 08 | [Write commands](08-write-commands.md) | 3 Write | 04, 05, 06 | not started |
 | 09 | [Reconcile commands](09-reconcile-commands.md) | 3 Write | 07, 08 | not started |
 | 10 | [Geotag](10-geotag.md) | 3 Write | 08 | not started |

@@ -138,7 +138,9 @@ Json make_document(const std::string& command, const std::vector<FileReport>& fi
     fo.emplace_back("path", Json(f.path));
     fo.emplace_back("ok", Json(f.ok));
     if (!f.ok) fo.emplace_back("error", Json(f.error));
-    if (f.ok || !f.properties.empty()) {
+    // Always emit properties for a successful dump with no extra payload
+    // (e.g. empty `umm read`). Inspect commands attach json_extra instead.
+    if (!f.properties.empty() || (f.ok && f.json_extra.empty())) {
       Json::Array props;
       for (const PropertyRow& p : f.properties) {
         Json::Object po;
