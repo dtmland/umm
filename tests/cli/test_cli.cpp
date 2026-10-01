@@ -675,6 +675,34 @@ static void test_geotag_doctor_setup() {
     CHECK(nmeta.setDateCreated(naive_dt).ok());
     if (umm::write(naive, nmeta).ok()) {
       int rc = run_cli({"geotag", "--track", gpx.string(), naive.string()}, nullptr, &err);
+      std::cerr << "naive geotag rc=" << rc << " err=[" << err << "]\n";
+      auto rb = umm::read(naive);
+      if (rb.ok()) {
+        auto dc = rb.value().dateCreated();
+        if (dc) {
+          if (const auto* dt = std::get_if<umm::DateTime>(&dc->value.data)) {
+            std::cerr << "readback offset has=" << dt->utc_offset_minutes.has_value();
+            if (dt->utc_offset_minutes) std::cerr << " val=" << *dt->utc_offset_minutes;
+            std::cerr << "\n";
+          } else {
+            std::cerr << "readback dateCreated not DateTime\n";
+          }
+        } else {
+          std::cerr << "readback no dateCreated\n";
+        }
+        for (const auto& e : rb.value().unmapped()) {
+          if (e.key.key.find("Date") != std::string::npos ||
+              e.key.key.find("Time") != std::string::npos ||
+              e.key.key.find("Offset") != std::string::npos) {
+            std::cerr << "unmapped " << e.key.family << " " << e.key.key << " = " << e.value << "\n";
+          }
+        }
+        if (dc) {
+          std::cerr << "resolved dateCreated=" << dc->value.toString() << "\n";
+        }
+      } else {
+        std::cerr << "readback failed: " << rb.error().message << "\n";
+      }
       CHECK(rc == to_int(ExitCode::semantics));
       CHECK(run_cli({"geotag", "--offset", "0", "--track", gpx.string(), naive.string()}) == 0);
     }
