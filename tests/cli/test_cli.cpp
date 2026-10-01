@@ -108,6 +108,14 @@ static void test_property_seam() {
   auto r = resolve_property("no.such.id", umm::MediaDomain::photo);
   CHECK(!r.ok() && r.error().code == umm::ErrorCode::unknown_property);
   CHECK(!resolve_property("definitely-not-a-name", umm::MediaDomain::unknown).ok());
+  auto c = resolve_property("creator", umm::MediaDomain::photo);
+  CHECK(c.ok() && c.value().is_accessor());
+  auto g = resolve_property("gps", umm::MediaDomain::video);
+  CHECK(g.ok() && g.value().is_accessor());
+  CHECK(accessor_names().size() >= 38);
+  for (auto n : accessor_names()) CHECK(resolve_property(n, umm::MediaDomain::unknown).ok());
+  umm::Metadata empty;  // getters are callable through the bound pointer
+  CHECK(!(empty.*(c.value().getter))().has_value());
 }
 
 static void test_config() {
