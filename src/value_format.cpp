@@ -66,6 +66,16 @@ Json structure_to_json(const umm::Structure& fields) {
   return Json(std::move(o));
 }
 
+std::string structure_label(const umm::Structure& fields) {
+  for (const char* key : {"name", "city"}) {
+    auto it = fields.find(key);
+    if (it == fields.end()) continue;
+    std::string n = value_summary(it->second);
+    if (!n.empty()) return n;
+  }
+  return {};
+}
+
 }  // namespace
 
 Json value_to_json(const umm::Value& value) {
@@ -145,8 +155,18 @@ std::string value_summary(const umm::Value& value) {
           os << alt.latitude << ',' << alt.longitude;
           return os.str();
         } else if constexpr (std::is_same_v<T, umm::Structure>) {
+          std::string n = structure_label(alt);
+          if (!n.empty()) return n;
           return std::to_string(alt.size()) + (alt.size() == 1 ? " field" : " fields");
         } else if constexpr (std::is_same_v<T, std::vector<umm::Structure>>) {
+          std::string out;
+          for (const auto& s : alt) {
+            std::string n = structure_label(s);
+            if (n.empty()) continue;
+            if (!out.empty()) out += ", ";
+            out += n;
+          }
+          if (!out.empty()) return out;
           return std::to_string(alt.size()) + (alt.size() == 1 ? " entry" : " entries");
         }
         return {};
