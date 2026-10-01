@@ -1119,6 +1119,10 @@ int run_process(const fs::path& program, const std::vector<std::string>& args, s
   std::string cmd = shell_quote(program.string());
   for (const auto& a : args) cmd += " " + shell_quote(a);
 #ifdef _WIN32
+  // _popen runs `cmd.exe /c <command>`. With more than two quotes, cmd strips
+  // the first and last quote (ERROR_INVALID_NAME). Wrap the whole line.
+  cmd.insert(cmd.begin(), '"');
+  cmd.push_back('"');
   FILE* f = _popen(cmd.c_str(), "r");
 #else
   FILE* f = popen(cmd.c_str(), "r");
