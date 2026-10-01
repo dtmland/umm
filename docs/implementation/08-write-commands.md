@@ -1,6 +1,6 @@
 # Session 08 — Write commands (`set`, `rm`)
 
-Status: **not started**
+Status: **complete** (`set` / `rm` in `src/commands.cpp`; value parse in `src/value_format.*`; setters in `src/property.*`)
 
 ## Goal
 

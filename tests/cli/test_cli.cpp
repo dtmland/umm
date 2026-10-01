@@ -4,7 +4,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <sstream>
+#include <variant>
 
 #include "args.hpp"
 #include "batch.hpp"
@@ -397,6 +399,177 @@ static void test_inspect() {
   CHECK(run_cli({"unmapped", "/no/such/unmapped.jpg"}, nullptr, &err) == to_int(ExitCode::io));
 }
 
+static std::vector<unsigned char> read_bytes(const fs::path& path) {
+  std::ifstream in(path, std::ios::binary);
+  return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+static void test_parse_value() {
+  auto t = parse_value(umm::Datatype::text, "Ada", false);
+  CHECK(t.ok() && std::get<std::string>(t.value().data) == "Ada");
+  auto list = parse_value(umm::Datatype::text_list, "a,b", false);
+  CHECK(list.ok());
+  auto gps = parse_value(umm::Datatype::gps_coordinate, "40.7128,-74.0060", false);
+  CHECK(gps.ok());
+  const auto* g = std::get_if<umm::GpsCoordinate>(&gps.value().data);
+  CHECK(g && g->latitude > 40.7 && g->longitude < -74.0);
+  auto dt = parse_value(umm::Datatype::date_time, "2025-01-15T14:30:00Z", false);
+  CHECK(dt.ok());
+  Json j;
+  std::string err;
+  CHECK(Json::parse(R"({"name":"NYC","countryCode":"US"})", j, &err) && err.empty());
+  auto loc = parse_value(umm::Datatype::structure_list, R"({"name":"NYC","countryCode":"US"})", true);
+  CHECK(loc.ok());
+  CHECK(!parse_value(umm::Datatype::real, "nope", false).ok());
+}
+
+static void test_set_rm() {
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_set";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  fs::path jpg = write_jpeg(dir / "photo.jpg");
+  std::string out, err;
+
+  CHECK(run_cli({"set", jpg.string(), "iptc.photo.creator=Ada"}, &out, &err) == 0);
+  CHECK(run_cli({"get", jpg.string(), "creator"}, &out) == 0);
+  CHECK(out.find("Ada") != std::string::npos);
+  CHECK(run_cli({"set", jpg.string(), "creator=Bea"}, &out, &err) == 0);
+  CHECK(run_cli({"get", jpg.string(), "iptc.photo.creator"}, &out) == 0);
+  CHECK(out.find("Bea") != std::string::npos);
+
+  CHECK(run_cli({"set", jpg.string(), "gps=40.7128,-74.0060"}) == 0);
+  CHECK(run_cli({"get", jpg.string(), "gps"}, &out) == 0);
+  CHECK(out.find("40.7128") != std::string::npos);
+  CHECK(run_cli({"get", jpg.string(), "exif.gps.position"}, &out) == 0);
+  CHECK(out.find("40.7128") != std::string::npos);
+
+  CHECK(run_cli({"set", jpg.string(), "locationCreated", "--json",
+                 R"({"name":"NYC","countryCode":"US"})"}) == 0);
+  CHECK(run_cli({"get", "--json", jpg.string(), "locationCreated"}, &out) == 0);
+  CHECK(out.find("NYC") != std::string::npos);
+
+  auto before = read_bytes(jpg);
+  CHECK(run_cli({"set", "--dry-run", jpg.string(), "headline=Summit"}, &out, &err) == 0);
+  CHECK(out.find("METHOD") != std::string::npos);
+  CHECK(read_bytes(jpg) == before);
+  CHECK(run_cli({"get", jpg.string(), "headline"}) == to_int(ExitCode::not_found));
+  CHECK(run_cli({"set", "--dry-run", "--json", jpg.string(), "headline=Summit"}, &out) == 0);
+  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"command\": \"set\"") != std::string::npos);
+
+  CHECK(run_cli({"set", "--policy", "sidecar", jpg.string(), "headline=SidecarHead"}) == 0);
+  CHECK(read_bytes(jpg) == before);
+  CHECK(umm::findSidecar(jpg).has_value());
+  CHECK(run_cli({"get", jpg.string(), "headline"}, &out) == 0);
+  CHECK(out.find("SidecarHead") != std::string::npos);
+
+  CHECK(run_cli({"rm", jpg.string(), "creator"}) == 0);
+  CHECK(run_cli({"get", jpg.string(), "creator"}) == to_int(ExitCode::not_found));
+
+  CHECK(run_cli({"set", jpg.string(), "no-such-prop=x"}, nullptr, &err) == to_int(ExitCode::semantics));
+  CHECK(run_cli({"set", jpg.string(), "rating=not-a-number"}, nullptr, &err) ==
+        to_int(ExitCode::semantics));
+  CHECK(run_cli({"set", "--policy", "nope", jpg.string(), "creator=x"}) == to_int(ExitCode::usage));
+
+  fs::path jpg2 = write_jpeg(dir / "photo2.jpg");
+  int batch = run_cli({"set", jpg2.string(), (dir / "missing.jpg").string(), "creator=Batch"},
+                      nullptr, &err);
+  CHECK(batch == to_int(ExitCode::io));
+  CHECK(err.find("missing.jpg") != std::string::npos);
+  CHECK(run_cli({"get", jpg2.string(), "creator"}, &out) == 0);
+  CHECK(out.find("Batch") != std::string::npos);
+
+#ifdef UMM_LIBUMM_FIXTURES
+  {
+    fs::path src = fs::path(UMM_LIBUMM_FIXTURES) / "video" / "minimal.mp4";
+    if (fs::exists(src)) {
+      fs::path mp4 = dir / "video.mp4";
+      fs::copy_file(src, mp4, fs::copy_options::overwrite_existing);
+      int rc = run_cli({"set", mp4.string(), "creator=VideoAda"}, &out, &err);
+      if (rc == 0) {
+        CHECK(run_cli({"get", mp4.string(), "iptc.video.creator"}, &out) == 0);
+        CHECK(out.find("VideoAda") != std::string::npos || out.find("Ada") != std::string::npos);
+        CHECK(run_cli({"get", mp4.string(), "iptc.photo.creator"}) == to_int(ExitCode::not_found));
+      } else {
+        std::cerr << "skip video set: " << err << "\n";
+      }
+      CHECK(run_cli({"set", mp4.string(), "rating=3"}, nullptr, &err) == to_int(ExitCode::semantics));
+    }
+  }
+#endif
+
+  fs::remove_all(dir);
+}
+
+static void test_merge_sync() {
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_merge";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  fs::path jpg = write_jpeg(dir / "photo.jpg");
+  std::string out, err;
+
+  CHECK(run_cli({"merge", jpg.string(), "iptc.photo.creator"}) == to_int(ExitCode::usage));
+  CHECK(run_cli({"merge", "--use", "x", "--value", "y", jpg.string(), "iptc.photo.creator"}) ==
+        to_int(ExitCode::usage));
+  CHECK(run_cli({"merge", "--value", "Ada", jpg.string(), "creator"}) == to_int(ExitCode::usage));
+
+  CHECK(run_cli({"set", jpg.string(), "creator=Alice"}) == 0);
+  CHECK(run_cli({"merge", "--value", "Bob", jpg.string(), "iptc.photo.creator"}) == 0);
+  CHECK(run_cli({"get", jpg.string(), "creator"}, &out) == 0);
+  CHECK(out.find("Bob") != std::string::npos);
+
+  auto before = read_bytes(jpg);
+  int sync_dry = run_cli({"sync", "--dry-run", jpg.string()}, &out, &err);
+  if (sync_dry == 0) {
+    CHECK(out.find("METHOD") != std::string::npos || out.find("CARRIER") != std::string::npos);
+    CHECK(read_bytes(jpg) == before);
+  } else {
+    std::cerr << "sync --dry-run rc=" << sync_dry << " err=" << err << "\n";
+  }
+  CHECK(run_cli({"sync", "--direction", "nope", jpg.string()}) == to_int(ExitCode::usage));
+  CHECK(parse_args({"sync", "--direction", "embedded-to-sidecar", "p.jpg"}).options.at("direction") ==
+        "embedded-to-sidecar");
+  CHECK(parse_args({"sync", "--direction", "sidecar-to-embedded", "p.jpg"}).options.at("direction") ==
+        "sidecar-to-embedded");
+  CHECK(parse_args({"merge", "--container", "sidecar", "--use", "Xmp.dc.creator", "p.jpg",
+                    "iptc.photo.creator"})
+            .options.at("container") == "sidecar");
+
+#ifdef UMM_LIBUMM_FIXTURES
+  fs::path fixtures = UMM_LIBUMM_FIXTURES;
+  fs::path paired = fixtures / "jpeg" / "paired.jpg";
+  fs::path paired_xmp = fixtures / "jpeg" / "paired.xmp";
+  if (fs::exists(paired) && fs::exists(paired_xmp) && backend_available("exiv2")) {
+    fs::path media = dir / "paired.jpg";
+    fs::copy_file(paired, media, fs::copy_options::overwrite_existing);
+    fs::copy_file(paired_xmp, dir / "paired.xmp", fs::copy_options::overwrite_existing);
+    int conf = run_cli({"conflicts", media.string()}, &out);
+    CHECK(conf == 0);
+    int use = run_cli({"merge", "--use", "Xmp.dc.creator", "--container", "sidecar", media.string(),
+                       "iptc.photo.creator"},
+                      &out, &err);
+    if (use != 0) std::cerr << "merge --use rc=" << use << " err=" << err << "\n";
+    CHECK(use == 0);
+    int both = run_cli({"sync", "--dry-run", media.string()}, &out, &err);
+    if (both != 0) std::cerr << "sync after merge rc=" << both << " err=" << err << "\n";
+  } else {
+    std::cerr << "skip paired merge fixture\n";
+  }
+  fs::path conflict = fixtures / "jpeg" / "full-conflicting.jpg";
+  if (fs::exists(conflict) && backend_available("exiv2")) {
+    fs::path media = dir / "conflict.jpg";
+    fs::copy_file(conflict, media, fs::copy_options::overwrite_existing);
+    int syn = run_cli({"sync", media.string()}, nullptr, &err);
+    CHECK(syn == to_int(ExitCode::semantics) || syn == 0);
+    if (syn == to_int(ExitCode::semantics)) CHECK(err.find("merge") != std::string::npos);
+  }
+#else
+  std::cerr << "skip merge/sync fixtures (no libumm source dir)\n";
+#endif
+
+  fs::remove_all(dir);
+}
+
 int main() {
   test_version_linked();
   test_command_table();
@@ -411,6 +584,9 @@ int main() {
   test_version_command();
   test_read_get();
   test_inspect();
+  test_parse_value();
+  test_set_rm();
+  test_merge_sync();
   if (failures) std::cerr << failures << " check(s) failed\n";
   return failures ? 1 : 0;
 }

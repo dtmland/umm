@@ -1,6 +1,7 @@
 #include "commands.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <ostream>
@@ -414,6 +415,453 @@ ExitCode run_conflicts(const ParsedArgs& args, std::ostream& out, std::ostream& 
   return summarize(failures);
 }
 
+umm::WriteOptions write_options(const ParsedArgs& args) {
+  umm::WriteOptions options;
+  options.backend = args.backend;
+  options.dry_run = args.options.count("dry-run") != 0;
+  return options;
+}
+
+std::optional<umm::StoragePolicy> parse_policy(const ParsedArgs& args, std::ostream& err) {
+  auto it = args.options.find("policy");
+  if (it == args.options.end()) return umm::StoragePolicy::preferred;
+  const std::string& v = it->second;
+  if (v == "embedded") return umm::StoragePolicy::embedded_only;
+  if (v == "sidecar") return umm::StoragePolicy::sidecar_only;
+  if (v == "sidecar-required") return umm::StoragePolicy::sidecar_required;
+  if (v == "preferred") return umm::StoragePolicy::preferred;
+  err << "umm: --policy must be embedded|sidecar|sidecar-required|preferred, got '" << v << "'\n";
+  return std::nullopt;
+}
+
+std::optional<umm::SyncDirection> parse_direction(const ParsedArgs& args, std::ostream& err) {
+  auto it = args.options.find("direction");
+  if (it == args.options.end()) return umm::SyncDirection::both;
+  const std::string& v = it->second;
+  if (v == "both") return umm::SyncDirection::both;
+  if (v == "embedded-to-sidecar") return umm::SyncDirection::embedded_to_sidecar;
+  if (v == "sidecar-to-embedded") return umm::SyncDirection::sidecar_to_embedded;
+  err << "umm: --direction must be both|embedded-to-sidecar|sidecar-to-embedded, got '" << v
+      << "'\n";
+  return std::nullopt;
+}
+
+const char* storage_method_name(umm::StorageDecision::Method m) noexcept {
+  switch (m) {
+    case umm::StorageDecision::Method::embedded:
+      return "embedded";
+    case umm::StorageDecision::Method::sidecar:
+      return "sidecar";
+    case umm::StorageDecision::Method::mixed:
+      return "mixed";
+  }
+  return "embedded";
+}
+
+Json written_json(const std::vector<umm::UnmappedKey>& keys) {
+  Json::Array a;
+  for (const auto& k : keys)
+    a.emplace_back(Json(Json::Object{{"family", Json(k.family)}, {"key", Json(k.key)}}));
+  return Json(std::move(a));
+}
+
+Json write_report_json(const umm::WriteReport& report) {
+  Json::Array formats;
+  for (const auto& f : report.decision.formats) formats.emplace_back(Json(f));
+  return Json(Json::Object{{"method", Json(storage_method_name(report.decision.method))},
+                           {"backend", Json(report.decision.backend)},
+                           {"formats", Json(std::move(formats))},
+                           {"written", written_json(report.written)}});
+}
+
+std::string format_write_report(const umm::WriteReport& report) {
+  std::ostringstream os;
+  os << "METHOD  " << storage_method_name(report.decision.method) << "\nBACKEND  "
+     << report.decision.backend << "\nFORMATS  ";
+  for (std::size_t i = 0; i < report.decision.formats.size(); ++i) {
+    if (i) os << ", ";
+    os << report.decision.formats[i];
+  }
+  os << "\nWRITTEN  ";
+  for (std::size_t i = 0; i < report.written.size(); ++i) {
+    if (i) os << ", ";
+    os << report.written[i].key;
+  }
+  os << "\n";
+  return os.str();
+}
+
+Json sync_report_json(const umm::SyncReport& report) {
+  Json::Array formats;
+  for (const auto& f : report.decision.formats) formats.emplace_back(Json(f));
+  Json::Array carriers;
+  for (const auto& c : report.carriers) {
+    carriers.emplace_back(
+        Json(Json::Object{{"container", Json(c.container)}, {"written", written_json(c.written)}}));
+  }
+  return Json(Json::Object{{"method", Json(storage_method_name(report.decision.method))},
+                           {"backend", Json(report.decision.backend)},
+                           {"formats", Json(std::move(formats))},
+                           {"carriers", Json(std::move(carriers))}});
+}
+
+std::string format_sync_report(const umm::SyncReport& report) {
+  std::ostringstream os;
+  os << "METHOD  " << storage_method_name(report.decision.method) << "\nBACKEND  "
+     << report.decision.backend << "\n";
+  for (const auto& c : report.carriers) {
+    os << "CARRIER  " << c.container;
+    for (std::size_t i = 0; i < c.written.size(); ++i) os << (i ? ", " : "  ") << c.written[i].key;
+    os << "\n";
+  }
+  return os.str();
+}
+
+bool is_assign_token(const std::string& tok) {
+  auto eq = tok.find('=');
+  if (eq != std::string::npos && eq > 0) return true;
+  return resolve_property(tok, umm::MediaDomain::unknown).ok();
+}
+
+struct Assignment {
+  ResolvedProperty property;
+  umm::Value value;
+};
+
+umm::Result<std::vector<Assignment>> parse_assignments(const std::vector<std::string>& tokens) {
+  std::vector<Assignment> out;
+  for (std::size_t i = 0; i < tokens.size(); ++i) {
+    const std::string& tok = tokens[i];
+    auto eq = tok.find('=');
+    if (eq != std::string::npos && eq > 0) {
+      umm::Result<ResolvedProperty> p = resolve_property(tok.substr(0, eq), umm::MediaDomain::unknown);
+      if (!p.ok()) return p.error();
+      umm::Result<umm::Value> v = parse_value(p.value().datatype, tok.substr(eq + 1), false);
+      if (!v.ok()) return v.error();
+      out.push_back({p.value(), v.value()});
+      continue;
+    }
+    umm::Result<ResolvedProperty> p = resolve_property(tok, umm::MediaDomain::unknown);
+    if (!p.ok()) return p.error();
+    if (i + 1 >= tokens.size())
+      return umm::Error{umm::ErrorCode::invalid_value,
+                        "missing JSON value for '" + tok + "' (use --json)", "", ""};
+    ++i;
+    umm::Result<umm::Value> v = parse_value(p.value().datatype, tokens[i], true);
+    if (!v.ok()) return v.error();
+    out.push_back({p.value(), v.value()});
+  }
+  return out;
+}
+
+std::size_t first_assign_index(const std::vector<std::string>& operands) {
+  for (std::size_t i = 0; i < operands.size(); ++i)
+    if (is_assign_token(operands[i])) return i;
+  return operands.size();
+}
+
+void emit_mutate(const ParsedArgs& args, const std::vector<FileReport>& reports,
+                 const std::vector<ExitCode>& failures, std::size_t total, const std::string& human,
+                 bool emit_report, std::ostream& out, std::ostream& err) {
+  if (args.json && emit_report) {
+    out << make_document(std::string(args.command->name), reports).dump() << "\n";
+  } else if (emit_report && !human.empty()) {
+    out << human;
+  }
+  if (!args.json || !emit_report) {
+    for (const FileReport& f : reports)
+      if (!f.ok) err << "umm " << args.command->name << ": " << f.error << "\n";
+  }
+  if (!failures.empty() && total > 1)
+    err << "umm " << args.command->name << ": " << failures.size() << " of " << total
+        << " file(s) failed\n";
+}
+
+ExitCode run_set(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+  auto policy = parse_policy(args, err);
+  if (!policy) return ExitCode::usage;
+  const std::size_t split = first_assign_index(args.operands);
+  if (split == 0 || split == args.operands.size()) {
+    err << "umm set: need FILE… and ASSIGN…\n";
+    return ExitCode::usage;
+  }
+  std::vector<std::string> file_ops(args.operands.begin(), args.operands.begin() + static_cast<std::ptrdiff_t>(split));
+  std::vector<std::string> assign_toks(args.operands.begin() + static_cast<std::ptrdiff_t>(split),
+                                       args.operands.end());
+  umm::Result<std::vector<Assignment>> assigns = parse_assignments(assign_toks);
+  if (!assigns.ok()) {
+    err << "umm set: " << assigns.error().message << "\n";
+    return exit_code_for(assigns.error().code);
+  }
+  umm::WriteOptions options = write_options(args);
+  options.policy = *policy;
+  const bool dry = options.dry_run;
+  std::vector<fs::path> files = expand_operands(file_ops, args.recursive);
+  std::vector<FileReport> reports;
+  std::vector<ExitCode> failures;
+  std::string human;
+  const bool multi = files.size() > 1;
+  for (const fs::path& file : files) {
+    umm::Result<void> pre = check_file(file);
+    if (!pre.ok()) {
+      reports.push_back({file.string(), false, pre.error().message, {}});
+      failures.push_back(exit_code_for(pre.error().code));
+      continue;
+    }
+    umm::Result<umm::Metadata> r = umm::read(file, read_options(args));
+    if (!r.ok()) {
+      reports.push_back({file.string(), false, r.error().message, {}});
+      failures.push_back(exit_code_for(r.error().code));
+      continue;
+    }
+    umm::Metadata meta = std::move(r).value();
+    bool ok = true;
+    for (const Assignment& a : assigns.value()) {
+      umm::Result<void> s = apply_set(meta, a.property, a.value);
+      if (!s.ok()) {
+        reports.push_back({file.string(), false, s.error().message, {}});
+        failures.push_back(exit_code_for(s.error().code));
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) continue;
+    umm::Result<umm::WriteReport> wr = umm::write(file, meta, options);
+    if (!wr.ok()) {
+      reports.push_back({file.string(), false, wr.error().message, {}});
+      failures.push_back(exit_code_for(wr.error().code));
+      continue;
+    }
+    FileReport report{file.string(), true, "", {}};
+    report.json_extra.emplace_back("report", write_report_json(wr.value()));
+    reports.push_back(report);
+    if (dry) {
+      if (multi) human += "== " + file.string() + " ==\n";
+      human += format_write_report(wr.value());
+    }
+  }
+  emit_mutate(args, reports, failures, files.size(), human, dry, out, err);
+  return summarize(failures);
+}
+
+ExitCode run_rm(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+  auto policy = parse_policy(args, err);
+  if (!policy) return ExitCode::usage;
+  const std::size_t split = first_assign_index(args.operands);
+  if (split == 0 || split == args.operands.size()) {
+    err << "umm rm: need FILE… and PROPERTY…\n";
+    return ExitCode::usage;
+  }
+  std::vector<std::string> file_ops(args.operands.begin(), args.operands.begin() + static_cast<std::ptrdiff_t>(split));
+  std::vector<ResolvedProperty> props;
+  for (std::size_t i = split; i < args.operands.size(); ++i) {
+    umm::Result<ResolvedProperty> p = resolve_property(args.operands[i], umm::MediaDomain::unknown);
+    if (!p.ok()) {
+      err << "umm rm: " << p.error().message << "\n";
+      return exit_code_for(p.error().code);
+    }
+    props.push_back(p.value());
+  }
+  umm::WriteOptions options = write_options(args);
+  options.policy = *policy;
+  const bool dry = options.dry_run;
+  std::vector<fs::path> files = expand_operands(file_ops, args.recursive);
+  std::vector<FileReport> reports;
+  std::vector<ExitCode> failures;
+  std::string human;
+  const bool multi = files.size() > 1;
+  for (const fs::path& file : files) {
+    umm::Result<void> pre = check_file(file);
+    if (!pre.ok()) {
+      reports.push_back({file.string(), false, pre.error().message, {}});
+      failures.push_back(exit_code_for(pre.error().code));
+      continue;
+    }
+    umm::Result<umm::Metadata> r = umm::read(file, read_options(args));
+    if (!r.ok()) {
+      reports.push_back({file.string(), false, r.error().message, {}});
+      failures.push_back(exit_code_for(r.error().code));
+      continue;
+    }
+    umm::Metadata meta = std::move(r).value();
+    bool ok = true;
+    for (const ResolvedProperty& p : props) {
+      umm::Result<void> s = apply_remove(meta, p);
+      if (!s.ok()) {
+        reports.push_back({file.string(), false, s.error().message, {}});
+        failures.push_back(exit_code_for(s.error().code));
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) continue;
+    umm::Result<umm::WriteReport> wr = umm::write(file, meta, options);
+    if (!wr.ok()) {
+      reports.push_back({file.string(), false, wr.error().message, {}});
+      failures.push_back(exit_code_for(wr.error().code));
+      continue;
+    }
+    FileReport report{file.string(), true, "", {}};
+    report.json_extra.emplace_back("report", write_report_json(wr.value()));
+    reports.push_back(report);
+    if (dry) {
+      if (multi) human += "== " + file.string() + " ==\n";
+      human += format_write_report(wr.value());
+    }
+  }
+  emit_mutate(args, reports, failures, files.size(), human, dry, out, err);
+  return summarize(failures);
+}
+
+ExitCode run_merge(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+  auto policy = parse_policy(args, err);
+  if (!policy) return ExitCode::usage;
+  const bool has_use = args.options.count("use") != 0;
+  const bool has_value = args.options.count("value") != 0;
+  if (has_use == has_value) {
+    err << "umm merge: exactly one of --use RAWKEY or --value V is required\n";
+    return ExitCode::usage;
+  }
+  if (args.operands.size() < 2) {
+    err << "umm merge: need FILE and PROPERTY\n";
+    return ExitCode::usage;
+  }
+  if (args.operands.size() > 2) {
+    err << "umm merge: extra operand '" << args.operands[2] << "'\n";
+    return ExitCode::usage;
+  }
+  umm::Result<ResolvedProperty> prop = resolve_property(args.operands[1], umm::MediaDomain::unknown);
+  if (!prop.ok()) {
+    err << "umm merge: " << prop.error().message << "\n";
+    return exit_code_for(prop.error().code);
+  }
+  if (prop.value().is_accessor()) {
+    err << "umm merge: PROPERTY must be a full property id, not an accessor\n";
+    return ExitCode::usage;
+  }
+  auto cit = args.options.find("container");
+  if (cit != args.options.end() && cit->second != "embedded" && cit->second != "sidecar") {
+    err << "umm merge: --container must be embedded or sidecar\n";
+    return ExitCode::usage;
+  }
+  const std::string container = cit == args.options.end() ? "" : cit->second;
+  umm::WriteOptions wopts = write_options(args);
+  wopts.policy = *policy;
+  const bool dry = wopts.dry_run;
+  std::vector<fs::path> files = expand_operands({args.operands.front()}, args.recursive);
+  std::vector<FileReport> reports;
+  std::vector<ExitCode> failures;
+  std::string human;
+  const bool multi = files.size() > 1;
+  for (const fs::path& file : files) {
+    umm::Result<void> pre = check_file(file);
+    if (!pre.ok()) {
+      reports.push_back({file.string(), false, pre.error().message, {}});
+      failures.push_back(exit_code_for(pre.error().code));
+      continue;
+    }
+    umm::Result<umm::Metadata> merged;
+    if (has_use) {
+      umm::Result<umm::ConflictReport> cr = umm::detectConflict(file, read_options(args));
+      if (!cr.ok()) {
+        reports.push_back({file.string(), false, cr.error().message, {}});
+        failures.push_back(exit_code_for(cr.error().code));
+        continue;
+      }
+      const umm::ConflictEntry* entry = nullptr;
+      for (const auto& e : cr.value().entries)
+        if (e.property_id == prop.value().property_id) entry = &e;
+      if (!entry) {
+        reports.push_back({file.string(), false,
+                           "no conflict for " + prop.value().property_id, {}});
+        failures.push_back(ExitCode::semantics);
+        continue;
+      }
+      merged = umm::merge(cr.value().metadata, *entry, args.options.at("use"), container);
+    } else {
+      umm::Result<umm::Metadata> r = umm::read(file, read_options(args));
+      if (!r.ok()) {
+        reports.push_back({file.string(), false, r.error().message, {}});
+        failures.push_back(exit_code_for(r.error().code));
+        continue;
+      }
+      umm::Result<umm::Value> v =
+          parse_value(prop.value().datatype, args.options.at("value"), false);
+      if (!v.ok()) {
+        reports.push_back({file.string(), false, v.error().message, {}});
+        failures.push_back(exit_code_for(v.error().code));
+        continue;
+      }
+      merged = umm::merge(std::move(r).value(), prop.value().property_id, v.value());
+    }
+    if (!merged.ok()) {
+      reports.push_back({file.string(), false, merged.error().message, {}});
+      failures.push_back(exit_code_for(merged.error().code));
+      continue;
+    }
+    FileReport report{file.string(), true, "", {}};
+    if (dry) {
+      report.json_extra.emplace_back("merged", Json(true));
+      reports.push_back(report);
+      if (multi) human += "== " + file.string() + " ==\n";
+      human += "merged " + prop.value().property_id + " (dry-run, not written)\n";
+      continue;
+    }
+    umm::Result<umm::WriteReport> wr = umm::write(file, merged.value(), wopts);
+    if (!wr.ok()) {
+      reports.push_back({file.string(), false, wr.error().message, {}});
+      failures.push_back(exit_code_for(wr.error().code));
+      continue;
+    }
+    report.json_extra.emplace_back("report", write_report_json(wr.value()));
+    reports.push_back(report);
+  }
+  emit_mutate(args, reports, failures, files.size(), human, dry || args.json, out, err);
+  return summarize(failures);
+}
+
+ExitCode run_sync(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+  auto direction = parse_direction(args, err);
+  if (!direction) return ExitCode::usage;
+  umm::SyncOptions options;
+  options.backend = args.backend;
+  options.direction = *direction;
+  options.dry_run = args.options.count("dry-run") != 0;
+  const bool dry = options.dry_run;
+  std::vector<fs::path> files = expand_operands(args.operands, args.recursive);
+  std::vector<FileReport> reports;
+  std::vector<ExitCode> failures;
+  std::string human;
+  const bool multi = files.size() > 1;
+  for (const fs::path& file : files) {
+    umm::Result<void> pre = check_file(file);
+    if (!pre.ok()) {
+      reports.push_back({file.string(), false, pre.error().message, {}});
+      failures.push_back(exit_code_for(pre.error().code));
+      continue;
+    }
+    umm::Result<umm::SyncReport> r = umm::synchronize(file, options);
+    if (!r.ok()) {
+      std::string msg = r.error().message;
+      if (r.error().code == umm::ErrorCode::conflict_unresolved &&
+          msg.find("merge") == std::string::npos)
+        msg += " (use umm merge first)";
+      reports.push_back({file.string(), false, msg, {}});
+      failures.push_back(exit_code_for(r.error().code));
+      continue;
+    }
+    FileReport report{file.string(), true, "", {}};
+    report.json_extra.emplace_back("report", sync_report_json(r.value()));
+    reports.push_back(report);
+    if (dry || args.json) {
+      if (multi) human += "== " + file.string() + " ==\n";
+      human += format_sync_report(r.value());
+    }
+  }
+  emit_mutate(args, reports, failures, files.size(), human, dry || args.json, out, err);
+  return summarize(failures);
+}
+
 ExitCode run_caps(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
   std::vector<FileReport> reports;
   std::vector<ExitCode> failures;
@@ -445,8 +893,12 @@ ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& er
   if (cmd.name == "version") return run_version(args, out);
   if (cmd.name == "read") return run_read(args, out, err);
   if (cmd.name == "get") return run_get(args, out, err);
+  if (cmd.name == "set") return run_set(args, out, err);
+  if (cmd.name == "rm") return run_rm(args, out, err);
   if (cmd.name == "unmapped") return run_unmapped(args, out, err);
   if (cmd.name == "conflicts") return run_conflicts(args, out, err);
+  if (cmd.name == "merge") return run_merge(args, out, err);
+  if (cmd.name == "sync") return run_sync(args, out, err);
   if (cmd.name == "caps") return run_caps(args, out, err);
 
   if (cmd.batch_files) {
