@@ -1,6 +1,6 @@
 # Session 05 — Config and output
 
-Status: **not started**
+Status: **complete** (config in `src/config.*`, formatters in `src/output.*`; schema draft in [json-schema.md](json-schema.md))
 
 ## Goal
 

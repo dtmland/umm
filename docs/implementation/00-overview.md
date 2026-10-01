@@ -58,9 +58,9 @@ New design decisions that cannot be resolved from the concept go under
 |---|---|---|---|---|
 | 01 | [Project skeleton](01-project-skeleton.md) | 0 Foundation | — | complete |
 | 02 | [libumm consumption](02-libumm-consumption.md) | 0 Foundation | 01 | complete |
-| 03 | [CI foundation](03-ci-foundation.md) | 0 Foundation | 02 | in progress |
-| 04 | [CLI framework](04-cli-framework.md) | 1 Plumbing | 01, 02 | not started |
-| 05 | [Config and output](05-config-and-output.md) | 1 Plumbing | 04 | not started |
+| 03 | [CI foundation](03-ci-foundation.md) | 0 Foundation | 02 | complete |
+| 04 | [CLI framework](04-cli-framework.md) | 1 Plumbing | 01, 02 | complete |
+| 05 | [Config and output](05-config-and-output.md) | 1 Plumbing | 04 | complete |
 | 06 | [Read commands](06-read-commands.md) | 2 Read | 04, 05 | not started |
 | 07 | [Inspect commands](07-inspect-commands.md) | 2 Read | 06 | not started |
 | 08 | [Write commands](08-write-commands.md) | 3 Write | 04, 05, 06 | not started |

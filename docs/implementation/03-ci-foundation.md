@@ -1,6 +1,6 @@
 # Session 03 — CI foundation
 
-Status: **in progress** (workflow written and contract-tested; CI run not yet observed)
+Status: **complete** (workflow contract-tested; run 36881295234 on `main` green on Linux, Windows, macOS, and the system-libumm job)
 
 ## Goal
 

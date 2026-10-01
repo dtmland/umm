@@ -1,6 +1,6 @@
 # Session 04 — CLI framework
 
-Status: **not started**
+Status: **complete** (see [exit-codes.md](exit-codes.md); code in `src/`, tests in `tests/cli/`)
 
 ## Goal
 
