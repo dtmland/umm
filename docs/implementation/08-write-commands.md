@@ -9,8 +9,10 @@ Write canonical properties through libumm's policy engine: `umm set` and
 
 ## Concept
 
-- §2.1 `umm set FILE PROP=VALUE…`, `umm rm FILE PROP…`
-- §2.2 `--backend`, batch, **no parallel writes in v1**
+- §2.1 no `umm write` command; §2.2 `umm set FILE ASSIGN…`, `umm rm FILE PROP…`
+- §2.3 convenience accessors + full ids; §2.4 GPS/dates via `set`;
+  §2.5 struct values via `--json`
+- §2.6 `--backend`, batch, **no parallel writes in v1**
 - §6 no unmapped write; no ad-hoc tag names
 
 ## Prerequisites
@@ -19,9 +21,19 @@ Sessions 04–06 (batch driver, formatters, read for round-trip tests).
 
 ## In scope
 
-### `umm set FILE PROP=VALUE…`
+### `umm set FILE ASSIGN…`
 
-- Parse `PROP=VALUE` operands as canonical property ids and values. Value
+- `ASSIGN` is `NAME=VALUE` where `NAME` is a convenience accessor
+  (`creator="Jane"`, `keywords="a,b"`, `dateCreated=…`, `gps="40.7,-74.0"`,
+  `rating=…`) or a full id (`iptc.photo.creator=…`), resolved via the session
+  04 seam. All libumm accessors are supported for photo and video; accessors
+  follow `MediaDomain` (sniffed video → `iptc.video.*`), `rating` is
+  photo-only (error on video).
+- Struct / multi-valued properties: `NAME --json '<object|array>'`
+  (`locationCreated`, `iptc.photo.creatorsContactInfo`,
+  `iptc.video.contributor`, …). Mixed accessor / full-id / `--json` operands in
+  one invocation are allowed (concept §2.6 example).
+- Parse values as libumm `Value` types. Value
   parsing must match libumm `Value` types — read the headers (strings,
   numbers, dates, GPS, etc.). Do not invent a second type system.
 - `umm::read` (or equivalent construct-metadata path if libumm documents one),
@@ -36,7 +48,7 @@ Sessions 04–06 (batch driver, formatters, read for round-trip tests).
 
 ### `umm rm FILE PROP…`
 
-- Clear properties across all synchronized representations via `umm::write`
+- Operands are accessors or full ids. Clear properties across all synchronized representations via `umm::write`
   (libumm write-sync). Not a raw-tag delete.
 - Same `--policy`, `--dry-run`, `--backend`, batch rules as `set`.
 
@@ -59,7 +71,12 @@ Sessions 04–06 (batch driver, formatters, read for round-trip tests).
 
 ## Acceptance
 
-- `umm set photo.jpg iptc.photo.creator=Ada` persists through `umm get`.
+- `umm set photo.jpg iptc.photo.creator=Ada` and `umm set photo.jpg creator=Ada`
+  persist through `umm get`; the same accessor on `video.mp4` stores
+  `iptc.video.creator`.
+- `umm set photo.jpg gps="40.7128,-74.0060"` equals the `exif.gps.position`
+  form; struct `--json` round-trips; `rating` on video fails with the
+  semantics exit group.
 - `--dry-run` prints a `WriteReport` and does not modify the file.
 - `--policy sidecar` does not rewrite embedded bytes when libumm reports
   sidecar-only (assert via `WriteReport` / sidecar presence).

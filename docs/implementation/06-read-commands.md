@@ -9,8 +9,11 @@ Implement `umm version`, `umm read`, and `umm get` on `umm::read` /
 
 ## Concept
 
-- §2.1 `umm read FILE…`, `umm get FILE PROPERTY…`, `umm version`
-- §2.2 `--json`, `--backend`, batch
+- §2.1 `read` vs `get` vocabulary; §2.2 `umm read FILE…`, `umm get FILE PROPERTY…`,
+  `umm version`
+- §2.3 convenience accessors and full property ids
+- §2.5 struct display
+- §2.6 `--json`, `--backend`, batch
 - §3.3 version and standards reporting
 
 ## Prerequisites
@@ -38,10 +41,21 @@ Sessions 04–05.
 
 ### `umm get FILE PROPERTY…`
 
-- `umm get photo.jpg iptc.photo.creator` (one or more property ids).
+- `umm get photo.jpg creator` (convenience accessor) and
+  `umm get photo.jpg iptc.photo.creator` (full id); one or more per call.
+  Mixed lists are allowed (`umm get photo.jpg creator keywords gps`).
+- Support **every** accessor libumm ships (concept §2.3 table plus the
+  Tier 1–3 remainder: `altTextAccessibility`, `personShown`, `supplier`, …),
+  resolved through the session 04 addressing seam and libumm's headers — do
+  not hand-copy the list. Video files resolve accessors to `iptc.video.*`
+  (e.g. `locationCreated` → `iptc.video.locationShot`); full ids never
+  retarget the other domain; `rating` is photo-only; `gps` is
+  `exif.gps.position`. `shownEvent` on photos spans `eventName` +
+  `eventIdentifier`.
+- Struct values: compact summary by default, JSON object/array with `--json`.
 - Print values only (stable, scriptable). `--json` still allowed.
 - Exit non-zero if a requested property is absent (session 04 reserved code).
-- Unknown property ids: map libumm `unknown_property` through the exit-code
+- Unknown property names (accessor or id): map libumm `unknown_property` through the exit-code
   contract; do not invent CLI-side property aliases.
 
 ## Out of scope
@@ -61,6 +75,11 @@ Sessions 04–05.
 - `umm read` on a fixture prints canonical properties; `--sources` adds
   provenance/resolution; `--json` is valid and versioned.
 - `umm get` prints requested values and fails when absent.
+- Every libumm accessor is reachable on a photo fixture and (where defined)
+  a video fixture; a table-driven test enumerates accessors from libumm, so a
+  pin bump that adds one is covered or fails loudly.
+- `get video.mp4 creator` reads `iptc.video.creator`; `get photo.jpg
+  iptc.video.creator` does not retarget.
 - `--backend exiv2` and `--backend exiftool` pass through (skip or xfail a
   backend only when `doctor` would say it is missing — that command is later;
   for now skip if the backend is unavailable and say so in the test).

@@ -12,7 +12,7 @@ tests stay; this session fills gaps and makes the strategy explicit.
 
 - §5 `tests/` — CLI integration tests against libumm's fixture strategy:
   generate tiny fixtures; golden-output tests
-- §2.2 batch failures, `--json`, `--backend` verification workflows
+- §2.6 batch failures, `--json`, `--backend` verification workflows
 - §6 no third-party product scope; still no committed proprietary media
   unless checksummed Tier B is later justified (not required for v1 CLI)
 
@@ -41,6 +41,10 @@ deferred.
 - Windows path and `.xmp` pairing cases if not already covered (libumm
   pairing rules: same stem, `.xmp` then `.XMP` on case-sensitive FS).
 - Keep using existing ctest; do not add a new test framework.
+
+- Accessor coverage: table-driven get/set over every libumm accessor on photo
+  and video fixtures, plus struct `--json` and `gps` round-trips (concept
+  §2.3–§2.5).
 
 ## Out of scope
 

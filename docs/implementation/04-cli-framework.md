@@ -12,8 +12,8 @@ stubs that return a clear "not implemented" until their session.
 
 - §1 (CLI contributes parsing, formatting, batch, environment — no metadata
   logic)
-- §2.1 command list (register every command now; implement later)
-- §2.2 `--backend`, batch / globs / `--recursive`, no parallel writes,
+- §2.2 command list (register every command now; implement later)
+- §2.6 `--backend`, batch / globs / `--recursive`, no parallel writes,
   exit-code contract from `umm::ErrorCode` groups
 - §5 `src/` command modules
 - §5 no exceptions across the libumm boundary
@@ -26,8 +26,15 @@ after 02.
 
 ## In scope
 
+- A **property-addressing seam**: one function used by `get`/`set`/`rm` that
+  takes a CLI name (convenience accessor such as `creator`, or full id such as
+  `iptc.photo.creator`) plus the file's `MediaDomain` and returns what libumm
+  says it is. It delegates to libumm's accessor/registry API in the pinned
+  headers (concept §2.3); it must not hardcode the accessor table. Unknown
+  names map to `unknown_property`. Stub it here, fill in with sessions 06/08.
+
 - A **command table** in source (data, not scattered `if`/`else` strings)
-  listing every concept §2.1 command: `read`, `get`, `set`, `rm`, `unmapped`,
+  listing every concept §2.2 command: `read`, `get`, `set`, `rm`, `unmapped`,
   `conflicts`, `merge`, `sync`, `caps`, `geotag`, `doctor`, `setup`,
   `version`. Include usage synopsis and which flags apply. Completions and
   `umm(1)` (session 12) must be generated from this table later — design it
@@ -83,7 +90,7 @@ after 02.
 ## Acceptance
 
 - `umm`, `umm --help`, and `umm not-a-command` behave as a real CLI.
-- Every §2.1 command name is dispatched (stub is acceptable).
+- Every §2.2 command name is dispatched (stub is acceptable).
 - `--backend`, `--recursive`, `--json` parse without crashing.
 - Batch over several missing files exits non-zero and reports each failure.
 - Exit-code mapping is written down and implemented for usage + a forced

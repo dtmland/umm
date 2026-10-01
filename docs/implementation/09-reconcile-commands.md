@@ -9,10 +9,10 @@ thin wrappers over `umm::merge` + `umm::write` and `umm::synchronize`.
 
 ## Concept
 
-- §2.1 `umm merge FILE PROP --use RAWKEY|--value V`
-- §2.1 `umm sync FILE` with `--direction both|embedded-to-sidecar|sidecar-to-embedded`,
+- §2.2 `umm merge FILE PROP --use RAWKEY|--value V`
+- §2.2 `umm sync FILE` with `--direction both|embedded-to-sidecar|sidecar-to-embedded`,
   `--dry-run`
-- §2.2 `--json`, `--backend`, batch, no parallel writes
+- §2.6 `--json`, `--backend`, batch, no parallel writes
 
 ## Prerequisites
 
@@ -21,6 +21,8 @@ Sessions 07–08 (`conflicts` for setup/asserts; `set`/`write` path).
 ## In scope
 
 ### `umm merge FILE PROP --use RAWKEY|--value V`
+
+- `PROP` is a **full property id** (not a convenience accessor), per concept §2.2.
 
 - Exactly one of `--use` or `--value` (concept table).
 - `--use RAWKEY`: `umm::detectConflict` / read, then `umm::merge(metadata, entry, source, container)`
