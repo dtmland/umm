@@ -97,8 +97,6 @@ umm::Result<void> set_alt(umm::Metadata& meta, const umm::Value& value,
 
 }  // namespace
 
-}  // namespace
-
 const std::vector<std::string_view>& accessor_names() {
   static const std::vector<std::string_view> names = [] {
     std::vector<std::string_view> v;

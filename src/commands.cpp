@@ -760,7 +760,7 @@ ExitCode run_merge(const ParsedArgs& args, std::ostream& out, std::ostream& err)
       failures.push_back(exit_code_for(pre.error().code));
       continue;
     }
-    umm::Result<umm::Metadata> merged;
+    std::optional<umm::Result<umm::Metadata>> merged;
     if (has_use) {
       umm::Result<umm::ConflictReport> cr = umm::detectConflict(file, read_options(args));
       if (!cr.ok()) {
@@ -794,9 +794,9 @@ ExitCode run_merge(const ParsedArgs& args, std::ostream& out, std::ostream& err)
       }
       merged = umm::merge(std::move(r).value(), prop.value().property_id, v.value());
     }
-    if (!merged.ok()) {
-      reports.push_back({file.string(), false, merged.error().message, {}});
-      failures.push_back(exit_code_for(merged.error().code));
+    if (!merged->ok()) {
+      reports.push_back({file.string(), false, merged->error().message, {}});
+      failures.push_back(exit_code_for(merged->error().code));
       continue;
     }
     FileReport report{file.string(), true, "", {}};
@@ -807,7 +807,7 @@ ExitCode run_merge(const ParsedArgs& args, std::ostream& out, std::ostream& err)
       human += "merged " + prop.value().property_id + " (dry-run, not written)\n";
       continue;
     }
-    umm::Result<umm::WriteReport> wr = umm::write(file, merged.value(), wopts);
+    umm::Result<umm::WriteReport> wr = umm::write(file, merged->value(), wopts);
     if (!wr.ok()) {
       reports.push_back({file.string(), false, wr.error().message, {}});
       failures.push_back(exit_code_for(wr.error().code));
