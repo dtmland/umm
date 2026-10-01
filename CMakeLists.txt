@@ -51,6 +51,9 @@ target_link_libraries(umm-cli-core PUBLIC umm::umm)
 target_compile_definitions(umm-cli-core PUBLIC
   "UMM_CLI_VERSION=\"${PROJECT_VERSION}\""
   "UMM_CLI_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
+if(WIN32)
+  target_compile_definitions(umm-cli-core PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/build/exiftool.env")
   file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/tools/build/exiftool.env" _et_pin_lines
        REGEX "^UMM_EXIFTOOL_VERSION=")

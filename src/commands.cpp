@@ -12,6 +12,12 @@
 #include <string>
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #else
 #include <sys/wait.h>
@@ -104,8 +110,8 @@ ExitCode run_version(const ParsedArgs& args, std::ostream& out) {
   if (rows.empty()) return ExitCode::ok;
   std::size_t sw = 8, vw = 7;
   for (const auto& s : rows) {
-    sw = std::max(sw, s.standard.size());
-    vw = std::max(vw, s.version.size());
+    if (s.standard.size() > sw) sw = s.standard.size();
+    if (s.version.size() > vw) vw = s.version.size();
   }
   auto pad = [](std::string s, std::size_t w) {
     if (s.size() < w) s.append(w - s.size(), ' ');
@@ -259,8 +265,8 @@ Json unmapped_json(const std::vector<umm::UnmappedEntry>& entries) {
 std::string format_unmapped(const std::vector<umm::UnmappedEntry>& entries) {
   std::size_t fw = 6, kw = 3;
   for (const auto& e : entries) {
-    fw = std::max(fw, e.key.family.size());
-    kw = std::max(kw, e.key.key.size());
+    if (e.key.family.size() > fw) fw = e.key.family.size();
+    if (e.key.key.size() > kw) kw = e.key.key.size();
   }
   auto pad = [](std::string s, std::size_t w) {
     if (s.size() < w) s.append(w - s.size(), ' ');
@@ -302,7 +308,9 @@ Json conflicts_json(const std::vector<umm::ConflictEntry>& entries) {
 std::string format_conflicts(const std::vector<umm::ConflictEntry>& entries) {
   if (entries.empty()) return "no conflicts\n";
   std::size_t iw = 8;
-  for (const auto& e : entries) iw = std::max(iw, e.property_id.size());
+  for (const auto& e : entries) {
+    if (e.property_id.size() > iw) iw = e.property_id.size();
+  }
   auto pad = [](std::string s, std::size_t w) {
     if (s.size() < w) s.append(w - s.size(), ' ');
     return s;
