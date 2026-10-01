@@ -1,6 +1,6 @@
 # Session 01 — Project skeleton
 
-Status: **not started**
+Status: **complete**
 
 ## Goal
 

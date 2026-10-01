@@ -54,25 +54,32 @@ New design decisions that cannot be resolved from the concept go under
 
 ## Sessions
 
-| # | Document | Stage | Status |
-|---|---|---|---|
-| 01 | [Project skeleton](01-project-skeleton.md) | 0 Foundation | not started |
-| 02 | [libumm consumption](02-libumm-consumption.md) | 0 Foundation | not started |
-| 03 | [CI foundation](03-ci-foundation.md) | 0 Foundation | not started |
-| 04 | [CLI framework](04-cli-framework.md) | 1 Plumbing | not started |
-| 05 | [Config and output](05-config-and-output.md) | 1 Plumbing | not started |
-| 06 | [Read commands](06-read-commands.md) | 2 Read | not started |
-| 07 | [Inspect commands](07-inspect-commands.md) | 2 Read | not started |
-| 08 | [Write commands](08-write-commands.md) | 3 Write | not started |
-| 09 | [Reconcile commands](09-reconcile-commands.md) | 3 Write | not started |
-| 10 | [Geotag](10-geotag.md) | 3 Write | not started |
-| 11 | [Doctor and setup](11-doctor-and-setup.md) | 4 Tooling | not started |
-| 12 | [Completions and man pages](12-completions-and-man.md) | 4 Tooling | not started |
-| 13 | [Integration tests](13-integration-tests.md) | 5 Harden | not started |
-| 14 | [Release engineering](14-release-engineering.md) | 5 Harden | not started |
-| 15 | [User, sysadmin, and developer docs](15-documentation.md) | 5 Harden | not started |
+| # | Document | Stage | Depends | Progress |
+|---|---|---|---|---|
+| 01 | [Project skeleton](01-project-skeleton.md) | 0 Foundation | — | complete |
+| 02 | [libumm consumption](02-libumm-consumption.md) | 0 Foundation | 01 | not started |
+| 03 | [CI foundation](03-ci-foundation.md) | 0 Foundation | 02 | not started |
+| 04 | [CLI framework](04-cli-framework.md) | 1 Plumbing | 01, 02 | not started |
+| 05 | [Config and output](05-config-and-output.md) | 1 Plumbing | 04 | not started |
+| 06 | [Read commands](06-read-commands.md) | 2 Read | 04, 05 | not started |
+| 07 | [Inspect commands](07-inspect-commands.md) | 2 Read | 06 | not started |
+| 08 | [Write commands](08-write-commands.md) | 3 Write | 04, 05, 06 | not started |
+| 09 | [Reconcile commands](09-reconcile-commands.md) | 3 Write | 07, 08 | not started |
+| 10 | [Geotag](10-geotag.md) | 3 Write | 08 | not started |
+| 11 | [Doctor and setup](11-doctor-and-setup.md) | 4 Tooling | 05, 07 | not started |
+| 12 | [Completions and man pages](12-completions-and-man.md) | 4 Tooling | 04 (after 06–11) | not started |
+| 13 | [Integration tests](13-integration-tests.md) | 5 Harden | 06–11 | not started |
+| 14 | [Release engineering](14-release-engineering.md) | 5 Harden | 03, 12 | not started |
+| 15 | [User, sysadmin, and developer docs](15-documentation.md) | 5 Harden | 04–14 | not started |
 
-When a session is finished, set its Status to **complete** in this table.
+When a session is finished, set its Progress to **complete** in this table
+(values: `not started`, `in progress`, `complete`).
+
+**Depends** lists prerequisite sessions (from each session's Prerequisites
+section). A session may start once all its dependencies are complete; sessions
+whose dependencies are met can run in parallel. After 02, sessions 03 and 04
+can run in parallel; after 06, sessions 07 and 08 can; sessions 10 and 11 can
+run alongside 09 once their dependencies are complete.
 
 ## Concept coverage
 
