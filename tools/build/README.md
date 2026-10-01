@@ -5,4 +5,3 @@
 - `pins.sh` — validates `libumm.env` and, under GitHub Actions, appends the pins to `GITHUB_ENV`.
 - `linux-packages.txt` — apt prerequisites for the libumm build in CI.
 
-libumm has no release yet, so the pin is a commit archive.
