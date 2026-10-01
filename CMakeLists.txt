@@ -44,9 +44,11 @@ add_library(umm-cli-core STATIC
   src/config.cpp
   src/errors.cpp
   src/output.cpp
-  src/property.cpp)
+  src/property.cpp
+  src/value_format.cpp)
 target_include_directories(umm-cli-core PUBLIC src)
 target_link_libraries(umm-cli-core PUBLIC umm::umm)
+target_compile_definitions(umm-cli-core PUBLIC "UMM_CLI_VERSION=\"${PROJECT_VERSION}\"")
 
 add_executable(umm-cli src/main.cpp)
 set_target_properties(umm-cli PROPERTIES OUTPUT_NAME umm)
@@ -55,8 +57,14 @@ target_link_libraries(umm-cli PRIVATE umm-cli-core)
 enable_testing()
 add_executable(umm-cli-tests tests/cli/test_cli.cpp)
 target_link_libraries(umm-cli-tests PRIVATE umm-cli-core)
+if(NOT UMM_CLI_USE_SYSTEM_LIBUMM AND DEFINED libumm_SOURCE_DIR)
+  target_compile_definitions(umm-cli-tests PRIVATE
+    "UMM_LIBUMM_METADATA_HPP=\"${libumm_SOURCE_DIR}/include/umm/metadata.hpp\""
+    "UMM_LIBUMM_FIXTURES=\"${libumm_SOURCE_DIR}/tests/fixtures\"")
+endif()
 add_test(NAME umm_cli_unit COMMAND umm-cli-tests)
 
+add_test(NAME umm_version COMMAND umm-cli version)
 add_test(NAME umm_help COMMAND umm-cli --help)
 add_test(NAME umm_no_command COMMAND umm-cli)
 set_tests_properties(umm_no_command PROPERTIES WILL_FAIL TRUE)

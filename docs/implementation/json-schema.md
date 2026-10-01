@@ -18,9 +18,16 @@ object with a `files` array (one entry per file, in operand order).
 
 - `value` is the full JSON form; struct-valued properties are objects or
   arrays (concept §2.5). The human table prints a compact summary instead.
+- `umm read --sources` adds `resolution`, `sources` (`raw_key`, `backend`,
+  `container`), and `preferred_source` when set, on each property object.
+- `umm get` uses the requested name as `id` (accessor or full property id).
+  When a requested property is absent, `ok` is false, `error` lists the
+  missing names, and found properties are still included.
 - Commands without per-file results (`version`, `doctor`) add their own
-  top-level fields next to `schema_version` and `command`.
-- Property ids are libumm canonical ids, never backend tag names.
+  top-level fields next to `schema_version` and `command`. `umm version`
+  adds `version` (CLI), `libumm`, and `standards` (`standard`, `version`,
+  `source_document` from `Registry::StandardInfo`).
+- Property ids on `read` are libumm canonical ids, never backend tag names.
 
 ## Versioning (concept §7.2)
 

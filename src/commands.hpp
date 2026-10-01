@@ -7,9 +7,9 @@
 
 namespace umm_cli {
 
-// Runs a parsed command. Command bodies land in sessions 06-11; until then
-// every command validates its operands through the batch driver and reports
-// "not implemented" (ExitCode::not_implemented).
+// Runs a parsed command. `version`, `read`, and `get` are implemented
+// (session 06); remaining commands validate operands then report
+// "not implemented" until their session.
 ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& err);
 
 }  // namespace umm_cli
