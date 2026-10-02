@@ -66,6 +66,15 @@ Those tests guard pins, CI/release workflows, setup-script policy strings,
 and generator/install rules. Do not add a second Exiv2/Expat/zlib download
 path.
 
+## Version and release
+
+`project(umm VERSION x.y.z)` in `CMakeLists.txt` is the **only** umm CLI
+version. CMake sets `UMM_CLI_VERSION` from it. Do not search-replace the old
+number: the libumm pin, historical docs, and packaging-test dummy versions
+are independent (they can coincide with the CLI version by accident). See
+[`docs/release-checklist.md`](../release-checklist.md). After a green CI
+bump, tag `vX.Y.Z` matching CMake exactly.
+
 Default consume-from-source; `UMM_CLI_USE_SYSTEM_LIBUMM=ON` uses
 `find_package(umm CONFIG REQUIRED)`.
 

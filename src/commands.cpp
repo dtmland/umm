@@ -40,7 +40,7 @@
 #endif
 
 #ifndef UMM_CLI_VERSION
-#define UMM_CLI_VERSION "0.1.0"
+#error "UMM_CLI_VERSION is set by CMake from project(umm VERSION)"
 #endif
 
 namespace umm_cli {

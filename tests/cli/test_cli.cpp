@@ -25,6 +25,10 @@
 #include "umm/version.hpp"
 #include "value_format.hpp"
 
+#ifndef UMM_CLI_VERSION
+#error "UMM_CLI_VERSION is set by CMake from project(umm VERSION)"
+#endif
+
 using namespace umm_cli;
 namespace fs = std::filesystem;
 
@@ -208,7 +212,7 @@ static void test_output() {
   std::string doc = make_document("read", {f}).dump(-1);
   CHECK(doc.rfind("{\"schema_version\":1,\"command\":\"read\"", 0) == 0);
   CHECK(doc.find("\"value\":[{\"name\":\"Al\"}]") != std::string::npos);  // struct → full JSON
-  CHECK(make_document("version", {}, {{"version", Json("0.1.0")}}).dump(-1).find("\"schema_version\":1") !=
+  CHECK(make_document("version", {}, {{"version", Json("example")}}).dump(-1).find("\"schema_version\":1") !=
         std::string::npos);
   std::string table = format_table({f});
   CHECK(table.find("iptc.photo.creator") != std::string::npos && table.find("1 entry") != std::string::npos);
@@ -292,7 +296,7 @@ static void test_value_format() {
 static void test_version_command() {
   std::string out, err;
   CHECK(run_cli({"version"}, &out, &err) == 0);
-  CHECK(out.find("umm 0.1.0") != std::string::npos);
+  CHECK(out.find(std::string("umm ") + UMM_CLI_VERSION) != std::string::npos);
   CHECK(out.find("libumm ") != std::string::npos);
   CHECK(out.find("STANDARD") != std::string::npos);
   CHECK(run_cli({"version", "--json"}, &out) == 0);

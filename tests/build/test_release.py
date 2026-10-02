@@ -23,6 +23,8 @@ NOTICES = REPO_ROOT / "THIRD-PARTY-NOTICES.md"
 NOTICE = REPO_ROOT / "NOTICE.md"
 LICENSE = REPO_ROOT / "LICENSE"
 CMAKE = REPO_ROOT / "CMakeLists.txt"
+# Dummy archive version for packaging tests — not CMake project(umm VERSION).
+PACKAGE_TEST_VERSION = "9.9.9"
 PINNED_RUNNERS = ("ubuntu-24.04", "windows-2025", "macos-15")
 LATEST_RUNNERS = ("ubuntu-latest", "windows-latest", "macos-latest")
 LICENSE_FILES = (
@@ -45,6 +47,35 @@ def run_tool(args: list[str], cwd: Path | None = None) -> subprocess.CompletedPr
         text=True,
         check=False,
     )
+
+
+class TestCliVersionSource(unittest.TestCase):
+    """A CMake project() bump must be enough for umm CLI version tests."""
+
+    def test_cmake_defines_cli_version_from_project(self) -> None:
+        cmake = CMAKE.read_text(encoding="utf-8")
+        match = re.search(r"project\(\s*umm\s+VERSION\s+(\d+\.\d+\.\d+)", cmake)
+        self.assertIsNotNone(match, "CMakeLists.txt must have project(umm VERSION x.y.z)")
+        self.assertIn("UMM_CLI_VERSION", cmake)
+        self.assertIn("${PROJECT_VERSION}", cmake)
+
+    def test_cli_tests_use_macro_not_hardcoded_project_version(self) -> None:
+        cli_test = (REPO_ROOT / "tests" / "cli" / "test_cli.cpp").read_text(encoding="utf-8")
+        self.assertIn("UMM_CLI_VERSION", cli_test)
+        self.assertNotRegex(cli_test, r'out\.find\("umm \d+\.\d+\.\d+"\)')
+
+    def test_sources_do_not_fallback_to_a_stale_version(self) -> None:
+        for rel in ("src/commands.cpp", "tools/gen/docs_gen.cpp"):
+            text = (REPO_ROOT / rel).read_text(encoding="utf-8")
+            self.assertIn("#ifndef UMM_CLI_VERSION", text)
+            self.assertIn("#error", text)
+            self.assertNotRegex(text, r'#define\s+UMM_CLI_VERSION\s+"')
+
+    def test_packaging_dummy_is_not_the_project_version(self) -> None:
+        cmake = CMAKE.read_text(encoding="utf-8")
+        match = re.search(r"project\(\s*umm\s+VERSION\s+(\d+\.\d+\.\d+)", cmake)
+        self.assertIsNotNone(match)
+        self.assertNotEqual(PACKAGE_TEST_VERSION, match.group(1))
 
 
 class TestReleaseWorkflow(unittest.TestCase):
@@ -150,6 +181,9 @@ class TestReleaseWorkflow(unittest.TestCase):
         self.assertIn("SHA256SUMS", checklist)
         self.assertIn("workflow_dispatch", checklist)
         self.assertIn("umm-", checklist)
+        self.assertIn("project(umm VERSION", checklist)
+        self.assertIn("libumm.env", checklist)
+        self.assertIn("UMM_CLI_VERSION", checklist)
 
 
 class TestNoticesAndPins(unittest.TestCase):
@@ -257,7 +291,7 @@ class TestReleaseTools(unittest.TestCase):
                     "--source-root",
                     str(REPO_ROOT),
                     "--version",
-                    "0.1.0",
+                    PACKAGE_TEST_VERSION,
                     "--os",
                     "ubuntu-24.04",
                     "--output-dir",
@@ -265,26 +299,27 @@ class TestReleaseTools(unittest.TestCase):
                 ]
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            archive = out / "umm-0.1.0-ubuntu-24.04.tar.gz"
+            archive = out / f"umm-{PACKAGE_TEST_VERSION}-ubuntu-24.04.tar.gz"
             self.assertTrue(archive.is_file())
             with tarfile.open(archive, "r:gz") as tar:
                 names = tar.getnames()
             joined = "\n".join(names)
+            prefix = f"umm-{PACKAGE_TEST_VERSION}"
             for needle in (
-                "umm-0.1.0/bin/umm",
-                "umm-0.1.0/share/man/man1/umm.1",
-                "umm-0.1.0/share/bash-completion/completions/umm",
-                "umm-0.1.0/share/zsh/site-functions/_umm",
-                "umm-0.1.0/share/fish/vendor_completions.d/umm.fish",
-                "umm-0.1.0/share/doc/umm/LICENSE",
-                "umm-0.1.0/share/doc/umm/NOTICE.md",
-                "umm-0.1.0/share/doc/umm/THIRD-PARTY-NOTICES.md",
-                "umm-0.1.0/share/doc/umm/licenses/GPL-3.0.txt",
-                "umm-0.1.0/README.md",
-                "umm-0.1.0/install/exiftool.sh",
-                "umm-0.1.0/install/exiftool.ps1",
-                "umm-0.1.0/install/exiftool.bat",
-                "umm-0.1.0/MANIFEST.txt",
+                f"{prefix}/bin/umm",
+                f"{prefix}/share/man/man1/umm.1",
+                f"{prefix}/share/bash-completion/completions/umm",
+                f"{prefix}/share/zsh/site-functions/_umm",
+                f"{prefix}/share/fish/vendor_completions.d/umm.fish",
+                f"{prefix}/share/doc/umm/LICENSE",
+                f"{prefix}/share/doc/umm/NOTICE.md",
+                f"{prefix}/share/doc/umm/THIRD-PARTY-NOTICES.md",
+                f"{prefix}/share/doc/umm/licenses/GPL-3.0.txt",
+                f"{prefix}/README.md",
+                f"{prefix}/install/exiftool.sh",
+                f"{prefix}/install/exiftool.ps1",
+                f"{prefix}/install/exiftool.bat",
+                f"{prefix}/MANIFEST.txt",
             ):
                 self.assertIn(needle, joined)
             self.assertNotIn("exiftool.exe", joined)
@@ -298,7 +333,7 @@ class TestReleaseTools(unittest.TestCase):
                     "--source-root",
                     str(REPO_ROOT),
                     "--version",
-                    "0.1.0",
+                    PACKAGE_TEST_VERSION,
                     "--os",
                     "ubuntu-24.04",
                     "--output-dir",

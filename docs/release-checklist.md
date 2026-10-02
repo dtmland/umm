@@ -6,20 +6,41 @@ summarized in [sysadmin install](sysadmin/install.md).
 
 ## Version bump
 
-Keep these identical:
+The **only** file to edit for an umm CLI version is `CMakeLists.txt`:
 
-1. `project(umm VERSION x.y.z)` in `CMakeLists.txt` (normative for tags).
-2. Runtime `UMM_CLI_VERSION` (set from that CMake project version).
+```cmake
+project(umm VERSION x.y.z)
+```
 
-Tag `vX.Y.Z` matching the CMake project version exactly (example: version
-`0.1.0` → `v0.1.0`). The release workflow fails if they disagree.
+CMake defines `UMM_CLI_VERSION` from that value. Runtime `umm version`, the
+generated `umm(1)` header, release notes, archive names, and the tag check
+all read it. Do **not** search-replace the old number across the tree.
+
+`umm` and libumm versions are independent even when they look the same.
+Leave these alone unless you are actually changing that other thing:
+
+- `tools/build/libumm.env` — the **libumm** pin, not the CLI version
+- `docs/bug-upstream/` and session docs — historical notes (including
+  libumm 0.1.0 defects)
+- `tests/build/test_release.py` — dummy packaging version (`9.9.9`), not
+  the project version
+- CLI tests — they assert `UMM_CLI_VERSION`; they must not hardcode
+  `umm x.y.z`
+
+Typical sequence:
+
+1. Bump `project(umm VERSION x.y.z)` on a branch (or `main`).
+2. Wait for green CI (`.github/workflows/ci.yml`).
+3. Merge if needed, then tag (next section).
 
 ## Tag procedure
 
-1. Complete the bump on `main` with green CI (`.github/workflows/ci.yml`).
+1. Complete the bump on `main` with green CI.
 2. Confirm `THIRD-PARTY-NOTICES.md` / `tools/build/corresponding-source.json`
    still match the pinned libumm (`tools/build/libumm.env`).
-3. Tag `vX.Y.Z` and push the tag. Do not use `*-latest` runners.
+3. Tag `vX.Y.Z` matching the CMake project version exactly (example: version
+   `0.1.1` → `v0.1.1`) and push the tag. The release workflow fails if they
+   disagree. Do not use `*-latest` runners.
 4. A `workflow_dispatch` run is a **dry-run**: it builds artifacts and
    `SHA256SUMS` but does **not** create a GitHub release.
 
