@@ -152,8 +152,12 @@ static void test_config() {
   written.exiftool = fs::path("C:\\Users\\me\\ExifTool.exe");
   std::string werr;
   CHECK(write_config_file(cfg, written, &werr));
-  std::ifstream in(cfg);
-  std::string body((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  std::string body;
+  {
+    // Close before remove_all: Windows cannot delete a still-open file.
+    std::ifstream in(cfg);
+    body.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+  }
   CHECK(body.find("# ExifTool path") != std::string::npos);
   CHECK(body.find("Discovery step") == std::string::npos);
   CHECK(body.find("exiftool = 'C:\\Users\\me\\ExifTool.exe'") != std::string::npos);
