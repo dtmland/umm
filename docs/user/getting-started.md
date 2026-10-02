@@ -46,6 +46,7 @@ umm version
 
 ```sh
 umm read photo.jpg
+umm read video.mp4
 umm get photo.jpg creator
 umm set photo.jpg creator="Jane Doe"
 umm get photo.jpg creator

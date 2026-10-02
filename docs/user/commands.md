@@ -29,7 +29,10 @@ Mutating commands emit JSON for `--dry-run` reports (`set`, `rm`, `geotag`);
 See [JSON schema](json-schema.md).
 
 `--backend` is passed through to libumm `ReadOptions` / `WriteOptions` /
-`SyncOptions`. Default is libumm's choice.
+`SyncOptions`. With no `--backend`, libumm uses the type's preferred backend
+when that backend is available (ExifTool for video and other Exiv2-weak
+types, Exiv2 for JPEG); otherwise the first available backend. An explicit
+`--backend` is a hard pin with no fallback.
 
 Batch commands process files **sequentially**. There are no parallel writes
 in v1. Per-file failures are recorded, processing continues, and the process

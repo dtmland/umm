@@ -20,7 +20,7 @@ umm::Error unknown_property(std::string_view name) {
 }
 
 // One entry per public `std::optional<PropertyValue> NAME() const` getter in
-// libumm's include/umm/metadata.hpp (v0.1.0). Datatype is the photo-native
+// libumm's include/umm/metadata.hpp (v0.1.1). Datatype is the photo-native
 // setter argument (libumm transposes for video). Ids stay in libumm.
 struct Binding {
   std::string_view name;

@@ -25,6 +25,10 @@
 #include "umm/version.hpp"
 #include "value_format.hpp"
 
+#ifndef UMM_CLI_VERSION
+#error "UMM_CLI_VERSION is set by CMake from project(umm VERSION)"
+#endif
+
 using namespace umm_cli;
 namespace fs = std::filesystem;
 
@@ -208,7 +212,7 @@ static void test_output() {
   std::string doc = make_document("read", {f}).dump(-1);
   CHECK(doc.rfind("{\"schema_version\":1,\"command\":\"read\"", 0) == 0);
   CHECK(doc.find("\"value\":[{\"name\":\"Al\"}]") != std::string::npos);  // struct → full JSON
-  CHECK(make_document("version", {}, {{"version", Json("0.1.0")}}).dump(-1).find("\"schema_version\":1") !=
+  CHECK(make_document("version", {}, {{"version", Json("example")}}).dump(-1).find("\"schema_version\":1") !=
         std::string::npos);
   std::string table = format_table({f});
   CHECK(table.find("iptc.photo.creator") != std::string::npos && table.find("1 entry") != std::string::npos);
@@ -292,7 +296,7 @@ static void test_value_format() {
 static void test_version_command() {
   std::string out, err;
   CHECK(run_cli({"version"}, &out, &err) == 0);
-  CHECK(out.find("umm 0.1.0") != std::string::npos);
+  CHECK(out.find(std::string("umm ") + UMM_CLI_VERSION) != std::string::npos);
   CHECK(out.find("libumm ") != std::string::npos);
   CHECK(out.find("STANDARD") != std::string::npos);
   CHECK(run_cli({"version", "--json"}, &out) == 0);
@@ -395,6 +399,19 @@ static void test_read_get() {
     if (fs::exists(src)) {
       fs::path mp4 = dir / "video.mp4";
       fs::copy_file(src, mp4, fs::copy_options::overwrite_existing);
+      if (backend_available("exiftool")) {
+        // libumm 0.1.1: default read/unmapped use preferred_backend (ExifTool for MP4).
+        CHECK(run_cli({"read", "--json", mp4.string()}, &out, &err) == 0);
+        CHECK(err.find("Exiv2 read failed") == std::string::npos);
+        CHECK(out.find("iptc.video.dateCreated") != std::string::npos);
+        CHECK(run_cli({"unmapped", mp4.string()}, &out, &err) == 0);
+        CHECK(err.find("Exiv2 read failed") == std::string::npos);
+        std::string def_unmapped = out;
+        CHECK(def_unmapped.find("QuickTime") != std::string::npos ||
+              def_unmapped.find("ExifTool") != std::string::npos);
+        CHECK(run_cli({"unmapped", "--backend", "exiftool", mp4.string()}, &out, &err) == 0);
+        CHECK(out == def_unmapped);
+      }
       int rc = run_cli({"get", mp4.string(), "creator"});
       CHECK(rc == 0 || rc == to_int(ExitCode::not_found));
       umm::Metadata vmeta;
@@ -552,7 +569,7 @@ static void test_set_rm() {
   CHECK(out.find("SidecarHead") != std::string::npos);
 
   CHECK(run_cli({"rm", jpg.string(), "creator"}) == 0);
-  // libumm v0.1.0 write-sync emits upserts only, so a cleared Metadata may
+  // libumm write-sync emits upserts only, so a cleared Metadata may
   // not delete on-disk tags. Accept either a persisted clear or in-memory
   // remove (checked above).
   int after_rm = run_cli({"get", jpg.string(), "creator"}, &out);

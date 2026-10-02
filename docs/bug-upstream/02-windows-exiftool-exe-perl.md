@@ -1,5 +1,9 @@
 # libumm: Windows standalone ExifTool.exe requires Perl
 
+**Status: fixed in libumm 0.1.1** ([PR 92](https://github.com/dtmland/libumm/pull/92)).
+umm pins that release in `tools/build/libumm.env`. Historical note against
+libumm 0.1.0 follows.
+
 File against **dtmland/libumm**. Type: Bug.
 
 ## Summary

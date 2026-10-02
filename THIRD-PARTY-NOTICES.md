@@ -17,7 +17,7 @@ release.
 
 ## libumm
 
-- Version: 0.1.0
+- Version: 0.1.1
 - License: Apache-2.0
 - Pin: `tools/build/libumm.env`
 - Role: statically linked library; umm adds no metadata semantics of its own

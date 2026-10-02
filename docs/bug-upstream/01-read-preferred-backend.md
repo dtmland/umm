@@ -1,5 +1,9 @@
 # libumm: `umm::read` ignores `preferred_backend`
 
+**Status: fixed in libumm 0.1.1** ([PR 91](https://github.com/dtmland/libumm/pull/91)).
+umm pins that release in `tools/build/libumm.env`. Historical note against
+libumm 0.1.0 follows.
+
 File against **dtmland/libumm**. Type: Bug.
 
 ## Summary

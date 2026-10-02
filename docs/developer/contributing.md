@@ -33,8 +33,9 @@ unmapped *write* is absent.
   how v1 was built. Keep the files until a human consolidates them.
 - `docs/analysis/` — dated decisions that cannot be resolved from the concept
   (create a record there rather than silently overriding the concept)
-- [`docs/bug-upstream/`](../bug-upstream/) — libumm defects; do not implement
-  backend selection or ExifTool process logic in this CLI to work around them
+- [`docs/bug-upstream/`](../bug-upstream/) — historical libumm 0.1.0 defects
+  (fixed in the pinned 0.1.1); do not implement backend selection or ExifTool
+  process logic in this CLI to work around them
 - [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
   — coding conventions (link, do not fork)
 
@@ -64,6 +65,15 @@ python3 -m unittest discover -s tests/build -v
 Those tests guard pins, CI/release workflows, setup-script policy strings,
 and generator/install rules. Do not add a second Exiv2/Expat/zlib download
 path.
+
+## Version and release
+
+`project(umm VERSION x.y.z)` in `CMakeLists.txt` is the **only** umm CLI
+version. CMake sets `UMM_CLI_VERSION` from it. Do not search-replace the old
+number: the libumm pin, historical docs, and packaging-test dummy versions
+are independent (they can coincide with the CLI version by accident). See
+[`docs/release-checklist.md`](../release-checklist.md). After a green CI
+bump, tag `vX.Y.Z` matching CMake exactly.
 
 Default consume-from-source; `UMM_CLI_USE_SYSTEM_LIBUMM=ON` uses
 `find_package(umm CONFIG REQUIRED)`.

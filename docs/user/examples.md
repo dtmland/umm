@@ -8,6 +8,7 @@ Prose uses generated-fixture style names (`photo.jpg`, `video.mp4`,
 
 ```sh
 umm read photo.jpg
+umm read video.mp4
 umm read photo.jpg --sources
 umm read photo.jpg --json
 umm read photo.jpg --sources --json
@@ -114,6 +115,7 @@ Skip or fail cleanly if the requested backend is unavailable (`umm doctor`).
 
 ```sh
 umm unmapped photo.jpg
+umm unmapped video.mp4
 umm doctor
 umm doctor --json
 umm setup exiftool

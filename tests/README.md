@@ -31,6 +31,8 @@ in `tests/goldens/`. Comparisons:
 - Substitute the fixture path with `FILE` (native, generic, and JSON-escaped
   forms, so Windows `\\` in JSON still collapses).
 - Substitute CLI and libumm version strings with `VERSION`.
+  `test_version_command` asserts `UMM_CLI_VERSION` from CMake
+  `project(umm VERSION)`; do not hardcode `umm x.y.z` in CLI tests.
 - Force `--backend exiv2` for read/get/unmapped/conflicts goldens so extra
   write-sync tags stay pinned. Caps goldens require both backends.
 
