@@ -16,6 +16,7 @@
 #include "cli.hpp"
 #include "command_table.hpp"
 #include "config.hpp"
+#include "docs_gen.hpp"
 #include "errors.hpp"
 #include "output.hpp"
 #include "property.hpp"
@@ -653,6 +654,51 @@ static const char* kGpx = R"(<?xml version="1.0" encoding="UTF-8"?>
 </gpx>
 )";
 
+static void test_docs_gen() {
+  const std::string man = generate_man_page();
+  const std::string bash = generate_bash_completion();
+  const std::string zsh = generate_zsh_completion();
+  const std::string fish = generate_fish_completion();
+  CHECK(man.find(".TH UMM 1") != std::string::npos);
+  CHECK(man.find("umm \\- media metadata tool built on libumm") != std::string::npos);
+  CHECK(man.find("exiftool") != std::string::npos && man.find("exiv2") != std::string::npos);
+  CHECK(man.find("never bundles") != std::string::npos);
+  std::string help;
+  CHECK(run_cli({"--help"}, &help) == 0);
+  const char* flags[] = {"--json",     "--backend", "--recursive", "--policy",
+                         "--dry-run",  "--sources", "--fail-on-conflict", "--direction",
+                         "--track",    "--offset",  "--use", "--value"};
+  for (const CommandSpec& c : commands()) {
+    CHECK(help.find(std::string(c.name)) != std::string::npos);
+    CHECK(man.find(std::string(c.name)) != std::string::npos);
+    CHECK(bash.find(std::string(c.name)) != std::string::npos);
+    CHECK(zsh.find(std::string(c.name)) != std::string::npos);
+    CHECK(fish.find(std::string(c.name)) != std::string::npos);
+  }
+  for (const char* f : flags) {
+    CHECK(bash.find(f) != std::string::npos);
+    CHECK(zsh.find(f) != std::string::npos);
+    CHECK(fish.find(std::string("-l ") + (f + 2)) != std::string::npos);
+  }
+  for (auto n : accessor_names()) {
+    CHECK(bash.find(std::string(n)) != std::string::npos);
+    CHECK(zsh.find(std::string(n)) != std::string::npos);
+    CHECK(fish.find(std::string(n)) != std::string::npos);
+  }
+  CHECK(bash.find("iptc.photo.") != std::string::npos);
+  CHECK(zsh.find("iptc.video.") != std::string::npos);
+  CHECK(fish.find("exif.") != std::string::npos);
+
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_docs";
+  fs::remove_all(dir);
+  write_generated_docs(dir);
+  CHECK(fs::exists(dir / "umm.1"));
+  CHECK(fs::exists(dir / "completions" / "umm.bash"));
+  CHECK(fs::exists(dir / "completions" / "_umm"));
+  CHECK(fs::exists(dir / "completions" / "umm.fish"));
+  fs::remove_all(dir);
+}
+
 static void test_geotag_doctor_setup() {
   std::string out, err;
   CHECK(run_cli({"geotag", "x.jpg"}, nullptr, &err) == to_int(ExitCode::usage));
@@ -753,6 +799,420 @@ static void test_geotag_doctor_setup() {
   fs::remove_all(dir);
 }
 
+static bool env_truthy(const char* key) {
+  const char* e = std::getenv(key);
+  return e && *e && std::string(e) != "0";
+}
+
+static void replace_all(std::string& s, std::string_view from, std::string_view to) {
+  if (from.empty()) return;
+  std::size_t pos = 0;
+  while ((pos = s.find(from, pos)) != std::string::npos) {
+    s.replace(pos, from.size(), to);
+    pos += to.size();
+  }
+}
+
+static std::string to_lf(std::string s) {
+  std::string out;
+  out.reserve(s.size());
+  for (char c : s)
+    if (c != '\r') out += c;
+  return out;
+}
+
+static std::string normalize_output(std::string s, const fs::path& path = {}) {
+  s = to_lf(std::move(s));
+  if (!path.empty()) {
+    replace_all(s, path.string(), "FILE");
+    if (path.generic_string() != path.string()) replace_all(s, path.generic_string(), "FILE");
+  }
+  replace_all(s, std::string("umm ") + UMM_CLI_VERSION, "umm VERSION");
+  replace_all(s, std::string("\"version\": \"") + UMM_CLI_VERSION + "\"", "\"version\": \"VERSION\"");
+  const std::string libv = std::string(umm::version());
+  replace_all(s, "libumm " + libv, "libumm VERSION");
+  replace_all(s, "\"libumm\": \"" + libv + "\"", "\"libumm\": \"VERSION\"");
+  return s;
+}
+
+static fs::path goldens_dir() { return fs::path(UMM_CLI_SOURCE_DIR) / "tests" / "goldens"; }
+
+static void check_golden(const std::string& name, std::string actual) {
+  actual = to_lf(std::move(actual));
+  const fs::path path = goldens_dir() / name;
+  if (env_truthy("UMM_REGENERATE_GOLDENS")) {
+    fs::create_directories(path.parent_path());
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out << actual;
+    if (!out) {
+      std::cerr << "failed to write golden " << path << "\n";
+      ++failures;
+    }
+    return;
+  }
+  std::ifstream in(path, std::ios::binary);
+  if (!in) {
+    std::cerr << "missing golden " << path << " (set UMM_REGENERATE_GOLDENS=1 to create)\n";
+    ++failures;
+    return;
+  }
+  std::string expected(std::istreambuf_iterator<char>(in), {});
+  expected = to_lf(std::move(expected));
+  if (expected != actual) {
+    std::cerr << "golden mismatch: " << name << "\n--- expected ---\n" << expected
+              << "\n--- actual ---\n" << actual << "\n";
+    ++failures;
+  }
+}
+
+static std::pair<bool, std::string> sample_for(const ResolvedProperty& p) {
+  switch (p.datatype) {
+    case umm::Datatype::text:
+      return {false, "SampleText"};
+    case umm::Datatype::text_list:
+      return {false, "alpha,beta"};
+    case umm::Datatype::lang_alt:
+      return {false, "HelloAlt"};
+    case umm::Datatype::date_time:
+      return {false, "2025-01-15T14:30:00Z"};
+    case umm::Datatype::real:
+      return {false, "3"};
+    case umm::Datatype::integer:
+      return {false, "3"};
+    case umm::Datatype::boolean:
+      return {false, "true"};
+    case umm::Datatype::gps_coordinate:
+      return {false, "40.7128,-74.0060"};
+    case umm::Datatype::structure:
+    case umm::Datatype::structure_list:
+      if (p.name == "contributor") return {true, R"([{"name":"Alice","role":"director"}])"};
+      if (p.name == "locationCreated" || p.name == "locationShown")
+        return {true, R"({"city":"NYC","countryName":"US"})"};
+      if (p.name == "personShown") return {true, R"({"name":"Bob"})"};
+      if (p.name == "shownEvent") return {true, R"({"name":"Summit"})"};
+      if (p.name == "genre") return {true, R"({"name":"Documentary"})"};
+      return {true, R"({"name":"X"})"};
+    default:
+      return {false, "x"};
+  }
+}
+
+static const char* needle_for(const ResolvedProperty& p) {
+  switch (p.datatype) {
+    case umm::Datatype::text:
+      return "SampleText";
+    case umm::Datatype::text_list:
+      return "alpha";
+    case umm::Datatype::lang_alt:
+      return "HelloAlt";
+    case umm::Datatype::date_time:
+      return "2025-01-15";
+    case umm::Datatype::real:
+    case umm::Datatype::integer:
+      return "3";
+    case umm::Datatype::boolean:
+      return "true";
+    case umm::Datatype::gps_coordinate:
+      return "40.7128";
+    default:
+      if (p.name == "contributor") return "Alice";
+      if (p.name == "locationCreated" || p.name == "locationShown") return "NYC";
+      if (p.name == "personShown") return "Bob";
+      if (p.name == "shownEvent") return "Summit";
+      if (p.name == "genre") return "Documentary";
+      return "X";
+  }
+}
+
+static void test_goldens() {
+  std::string out, err;
+  CHECK(run_cli({"version"}, &out) == 0);
+  check_golden("version.txt", normalize_output(out));
+  CHECK(run_cli({"version", "--json"}, &out) == 0);
+  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  check_golden("version.json", normalize_output(out));
+
+  if (backend_available("exiv2") && backend_available("exiftool")) {
+    CHECK(run_cli({"caps", "JPEG"}, &out) == 0);
+    check_golden("caps-jpeg.txt", normalize_output(out));
+    CHECK(run_cli({"caps", "--json", "JPEG"}, &out) == 0);
+    CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+    check_golden("caps-jpeg.json", normalize_output(out));
+  } else {
+    std::cerr << "skip caps goldens (need both backends)\n";
+  }
+
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_golden";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  fs::path jpg = write_jpeg(dir / "photo.jpg");
+  umm::Metadata meta;
+  CHECK(meta.setCreator({"Jane Doe"}).ok());
+  CHECK(meta.setKeywords({"nature", "landscape"}).ok());
+  umm::Result<umm::WriteReport> wr = umm::write(jpg, meta);
+  if (!wr.ok()) {
+    std::cerr << "skip read/get goldens: " << wr.error().message << "\n";
+    fs::remove_all(dir);
+    return;
+  }
+  std::vector<std::string> backend_flag;
+  if (backend_available("exiv2")) backend_flag = {"--backend", "exiv2"};
+  auto with_backend = [&](std::vector<std::string> a) {
+    a.insert(a.begin() + 1, backend_flag.begin(), backend_flag.end());
+    return a;
+  };
+  CHECK(run_cli(with_backend({"read", jpg.string()}), &out) == 0);
+  check_golden("read.txt", normalize_output(out, jpg));
+  CHECK(run_cli(with_backend({"read", "--json", jpg.string()}), &out) == 0);
+  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  check_golden("read.json", normalize_output(out, jpg));
+  CHECK(run_cli(with_backend({"get", jpg.string(), "creator"}), &out) == 0);
+  check_golden("get.txt", normalize_output(out, jpg));
+  CHECK(run_cli(with_backend({"get", "--json", jpg.string(), "creator"}), &out) == 0);
+  check_golden("get.json", normalize_output(out, jpg));
+
+#ifdef UMM_LIBUMM_FIXTURES
+  fs::path fixtures = UMM_LIBUMM_FIXTURES;
+  fs::path unknown = fixtures / "jpeg" / "unknown-tags.jpg";
+  fs::path conflict = fixtures / "jpeg" / "full-conflicting.jpg";
+  if (fs::exists(unknown) && backend_available("exiv2")) {
+    CHECK(run_cli({"unmapped", "--backend", "exiv2", unknown.string()}, &out) == 0);
+    check_golden("unmapped.txt", normalize_output(out, unknown));
+    CHECK(run_cli({"unmapped", "--json", "--backend", "exiv2", unknown.string()}, &out) == 0);
+    check_golden("unmapped.json", normalize_output(out, unknown));
+  } else {
+    std::cerr << "skip unmapped goldens\n";
+  }
+  if (fs::exists(conflict) && backend_available("exiv2")) {
+    CHECK(run_cli({"conflicts", "--backend", "exiv2", conflict.string()}, &out) == 0);
+    check_golden("conflicts.txt", normalize_output(out, conflict));
+    CHECK(run_cli({"conflicts", "--json", "--backend", "exiv2", conflict.string()}, &out) == 0);
+    check_golden("conflicts.json", normalize_output(out, conflict));
+  } else {
+    std::cerr << "skip conflicts goldens\n";
+  }
+#else
+  std::cerr << "skip unmapped/conflicts goldens (no libumm fixtures)\n";
+#endif
+  fs::remove_all(dir);
+}
+
+static void test_batch_recursive_cli() {
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_batch_tree";
+  fs::remove_all(dir);
+  fs::create_directories(dir / "sub");
+  fs::path good = write_jpeg(dir / "good.jpg");
+  fs::path nested = write_jpeg(dir / "sub" / "nested.jpg");
+  umm::Metadata meta;
+  CHECK(meta.setCreator({"Tree"}).ok());
+  if (!umm::write(good, meta).ok() || !umm::write(nested, meta).ok()) {
+    std::cerr << "skip batch/recursive CLI (no backend)\n";
+    fs::remove_all(dir);
+    return;
+  }
+  std::string out, err;
+  int rc = run_cli({"read", "--json", good.string(), (dir / "missing.jpg").string()}, &out, &err);
+  CHECK(rc == to_int(ExitCode::io));
+  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("Tree") != std::string::npos);
+  CHECK(out.find("\"ok\": true") != std::string::npos);
+  CHECK(out.find("\"ok\": false") != std::string::npos);
+  CHECK(out.find("missing.jpg") != std::string::npos);
+
+  CHECK(run_cli({"read", "--recursive", "--json", dir.string()}, &out, &err) == 0);
+  CHECK(out.find("good.jpg") != std::string::npos);
+  CHECK(out.find("nested.jpg") != std::string::npos);
+  fs::remove_all(dir);
+}
+
+static void test_cross_backend_and_dry_run() {
+  if (!backend_available("exiv2") || !backend_available("exiftool")) {
+    std::cerr << "skip cross-backend smoke (need both backends)\n";
+  } else {
+    fs::path dir = fs::temp_directory_path() / "umm_cli_test_xbackend";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    fs::path jpg = write_jpeg(dir / "photo.jpg");
+    std::string out, err;
+    int w = run_cli({"set", "--backend", "exiv2", jpg.string(), "creator=FromExiv2"}, &out, &err);
+    if (w != 0) {
+      std::cerr << "skip cross-backend: exiv2 write rc=" << w << " " << err << "\n";
+    } else {
+      CHECK(run_cli({"get", "--backend", "exiftool", jpg.string(), "creator"}, &out, &err) == 0);
+      CHECK(out.find("FromExiv2") != std::string::npos);
+      CHECK(run_cli({"set", "--backend", "exiftool", jpg.string(), "creator=FromExifTool"}) == 0);
+      CHECK(run_cli({"get", "--backend", "exiv2", jpg.string(), "creator"}, &out) == 0);
+      CHECK(out.find("FromExifTool") != std::string::npos);
+    }
+    fs::remove_all(dir);
+  }
+
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_mtime";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  fs::path jpg = write_jpeg(dir / "photo.jpg");
+  umm::Metadata probe;
+  CHECK(probe.setCreator({"Probe"}).ok());
+  if (!umm::write(jpg, probe).ok()) {
+    std::cerr << "skip dry-run mtime (no backend)\n";
+    fs::remove_all(dir);
+    return;
+  }
+  auto before_bytes = read_bytes(jpg);
+  auto before_size = fs::file_size(jpg);
+  auto before_mtime = fs::last_write_time(jpg);
+  std::string out, err;
+  CHECK(run_cli({"set", "--dry-run", jpg.string(), "headline=Dry"}, &out, &err) == 0);
+  CHECK(read_bytes(jpg) == before_bytes);
+  CHECK(fs::file_size(jpg) == before_size);
+  CHECK(fs::last_write_time(jpg) == before_mtime);
+  CHECK(run_cli({"set", jpg.string(), "headline=Wet"}) == 0);
+  CHECK(read_bytes(jpg) != before_bytes);
+  fs::remove_all(dir);
+}
+
+static void test_xmp_pairing() {
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_xmp";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  fs::path jpg = write_jpeg(dir / "paired.jpg");
+  umm::Metadata probe;
+  CHECK(probe.setCreator({"Probe"}).ok());
+  if (!umm::write(jpg, probe).ok()) {
+    std::cerr << "skip xmp pairing (no backend)\n";
+    fs::remove_all(dir);
+    return;
+  }
+  std::string out, err;
+  CHECK(run_cli({"set", "--policy", "sidecar", jpg.string(), "headline=SidecarAda"}) == 0);
+  auto side = umm::findSidecar(jpg);
+  CHECK(side.has_value());
+  CHECK(run_cli({"get", jpg.string(), "headline"}, &out) == 0);
+  CHECK(out.find("SidecarAda") != std::string::npos);
+  fs::path xmp = *side;
+  fs::path upper = jpg;
+  upper.replace_extension(".XMP");
+  std::error_code ec;
+  if (fs::exists(upper, ec) && fs::equivalent(xmp, upper, ec)) {
+    std::cerr << "skip .XMP case (case-insensitive filesystem)\n";
+  } else {
+    fs::rename(xmp, upper, ec);
+    if (ec) {
+      std::cerr << "skip .XMP rename: " << ec.message() << "\n";
+    } else {
+      CHECK(umm::findSidecar(jpg).has_value());
+      CHECK(run_cli({"get", jpg.string(), "headline"}, &out) == 0);
+      CHECK(out.find("SidecarAda") != std::string::npos);
+    }
+  }
+  fs::remove_all(dir);
+}
+
+static std::vector<std::string> with_backend(std::vector<std::string> args, const std::string& backend) {
+  if (!backend.empty()) {
+    args.insert(args.begin() + 1, "--backend");
+    args.insert(args.begin() + 2, backend);
+  }
+  return args;
+}
+
+static void roundtrip_accessors(const fs::path& media, umm::MediaDomain domain, const std::string& backend) {
+  std::string out, err;
+  for (auto n : accessor_names()) {
+    auto resolved = resolve_property(n, domain);
+    CHECK(resolved.ok());
+    if (!resolved.ok()) continue;
+    if (resolved.value().photo_only && domain == umm::MediaDomain::video) {
+      int rc = run_cli(with_backend({"set", media.string(), std::string(n) + "=3"}, backend), nullptr, &err);
+      CHECK(rc == to_int(ExitCode::semantics) || rc == to_int(ExitCode::backend) ||
+            rc == to_int(ExitCode::capability));
+      continue;
+    }
+    auto sample = sample_for(resolved.value());
+    std::vector<std::string> args{"set", media.string()};
+    if (sample.first) {
+      args.push_back(std::string(n));
+      args.push_back("--json");
+      args.push_back(sample.second);
+    } else {
+      args.push_back(std::string(n) + "=" + sample.second);
+    }
+    int rc = run_cli(with_backend(args, backend), &out, &err);
+    if (rc != 0) {
+      std::cerr << "skip accessor set " << n << " on " << media.filename().string() << " rc=" << rc
+                << " " << err << "\n";
+      if (domain == umm::MediaDomain::video &&
+          (rc == to_int(ExitCode::backend) || rc == to_int(ExitCode::capability)))
+        return;
+      continue;
+    }
+    std::vector<std::string> get_args{"get", "--json", media.string(), std::string(n)};
+    int grc = run_cli(with_backend(get_args, backend), &out, &err);
+    if (grc != 0) {
+      std::cerr << "skip accessor get " << n << " on " << media.filename().string() << " rc=" << grc
+                << " " << err << "\n";
+      if (domain == umm::MediaDomain::video &&
+          (grc == to_int(ExitCode::backend) || grc == to_int(ExitCode::capability)))
+        return;
+      continue;
+    }
+    if (out.find(needle_for(resolved.value())) == std::string::npos) {
+      std::cerr << "accessor get " << n << " missing needle, out=" << out << "\n";
+      ++failures;
+    }
+  }
+  int gps_set = run_cli(with_backend({"set", media.string(), "gps=41.0,-73.0"}, backend), &out, &err);
+  CHECK(gps_set == 0 || domain == umm::MediaDomain::video);
+  int gps_rc = run_cli(with_backend({"get", media.string(), "gps"}, backend), &out);
+  if (gps_rc == 0) CHECK(out.find("41") != std::string::npos);
+}
+
+static void test_accessor_coverage() {
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_accessors";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  fs::path jpg = write_jpeg(dir / "photo.jpg");
+  umm::Metadata probe;
+  CHECK(probe.setCreator({"Probe"}).ok());
+  if (!umm::write(jpg, probe).ok()) {
+    std::cerr << "skip accessor coverage (no backend)\n";
+    fs::remove_all(dir);
+    return;
+  }
+  roundtrip_accessors(jpg, umm::MediaDomain::photo, "");
+  CHECK(run_cli({"set", jpg.string(), "locationCreated", "--json",
+                 R"({"city":"NYC","countryName":"US"})"}) == 0);
+  std::string out, err;
+  CHECK(run_cli({"get", "--json", jpg.string(), "locationCreated"}, &out) == 0);
+  CHECK(out.find("NYC") != std::string::npos);
+
+#ifdef UMM_LIBUMM_FIXTURES
+  fs::path src = fs::path(UMM_LIBUMM_FIXTURES) / "video" / "minimal.mp4";
+  if (fs::exists(src)) {
+    fs::path mp4 = dir / "video.mp4";
+    fs::copy_file(src, mp4, fs::copy_options::overwrite_existing);
+    std::string video_backend = backend_available("exiftool") ? "exiftool" : "";
+    umm::Metadata v;
+    v.setMediaDomain(umm::MediaDomain::video);
+    if (!(v.setCreator({"Probe"}).ok() && umm::write(mp4, v).ok())) {
+      std::cerr << "skip video accessor coverage (write failed)\n";
+    } else {
+      int probe_rc =
+          run_cli(with_backend({"get", mp4.string(), "creator"}, video_backend), &out, &err);
+      if (probe_rc != 0 && probe_rc != to_int(ExitCode::not_found))
+        std::cerr << "skip video accessor coverage (read rc=" << probe_rc << " " << err << ")\n";
+      else
+        roundtrip_accessors(mp4, umm::MediaDomain::video, video_backend);
+    }
+  } else {
+    std::cerr << "skip video accessor coverage (no fixture)\n";
+  }
+#else
+  std::cerr << "skip video accessor coverage (no libumm fixtures)\n";
+#endif
+  fs::remove_all(dir);
+}
+
 int main() {
   test_version_linked();
   test_command_table();
@@ -771,6 +1231,12 @@ int main() {
   test_set_rm();
   test_merge_sync();
   test_geotag_doctor_setup();
+  test_docs_gen();
+  test_goldens();
+  test_batch_recursive_cli();
+  test_cross_backend_and_dry_run();
+  test_xmp_pairing();
+  test_accessor_coverage();
   if (failures) std::cerr << failures << " check(s) failed\n";
   return failures ? 1 : 0;
 }

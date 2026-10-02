@@ -70,9 +70,45 @@ add_executable(umm-cli src/main.cpp)
 set_target_properties(umm-cli PROPERTIES OUTPUT_NAME umm)
 target_link_libraries(umm-cli PRIVATE umm-cli-core)
 
+add_library(umm-docs-gen STATIC tools/gen/docs_gen.cpp)
+target_include_directories(umm-docs-gen PUBLIC tools/gen)
+target_link_libraries(umm-docs-gen PUBLIC umm-cli-core)
+
+add_executable(umm-gen-docs tools/gen/gen_docs.cpp)
+target_link_libraries(umm-gen-docs PRIVATE umm-docs-gen)
+
+set(UMM_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
+add_custom_command(
+  OUTPUT
+    "${UMM_GENERATED_DIR}/umm.1"
+    "${UMM_GENERATED_DIR}/completions/umm.bash"
+    "${UMM_GENERATED_DIR}/completions/_umm"
+    "${UMM_GENERATED_DIR}/completions/umm.fish"
+  COMMAND umm-gen-docs "${UMM_GENERATED_DIR}"
+  DEPENDS umm-gen-docs
+  COMMENT "Generating umm(1) and shell completions from the command table"
+  VERBATIM)
+add_custom_target(umm-generated-docs ALL
+  DEPENDS
+    "${UMM_GENERATED_DIR}/umm.1"
+    "${UMM_GENERATED_DIR}/completions/umm.bash"
+    "${UMM_GENERATED_DIR}/completions/_umm"
+    "${UMM_GENERATED_DIR}/completions/umm.fish")
+
+include(GNUInstallDirs)
+install(TARGETS umm-cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES "${UMM_GENERATED_DIR}/umm.1" DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
+install(FILES "${UMM_GENERATED_DIR}/completions/umm.bash"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/bash-completion/completions
+        RENAME umm)
+install(FILES "${UMM_GENERATED_DIR}/completions/_umm"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/zsh/site-functions)
+install(FILES "${UMM_GENERATED_DIR}/completions/umm.fish"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/fish/vendor_completions.d)
+
 enable_testing()
 add_executable(umm-cli-tests tests/cli/test_cli.cpp)
-target_link_libraries(umm-cli-tests PRIVATE umm-cli-core)
+target_link_libraries(umm-cli-tests PRIVATE umm-cli-core umm-docs-gen)
 if(NOT UMM_CLI_USE_SYSTEM_LIBUMM AND DEFINED libumm_SOURCE_DIR)
   target_compile_definitions(umm-cli-tests PRIVATE
     "UMM_LIBUMM_METADATA_HPP=\"${libumm_SOURCE_DIR}/include/umm/metadata.hpp\""

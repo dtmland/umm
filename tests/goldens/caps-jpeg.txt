@@ -1,0 +1,7 @@
+TYPE  JPEG
+PREFERRED  exiv2
+SIDECAR_RECOMMENDED  no
+
+BACKEND    AVAILABLE  EXIF        IPTC-IIM    XMP         GPS_EXIF    NAMED_PLACE  NOTES
+exiv2       yes        read_write   read_write   read_write   read_write   read_write
+exiftool    yes        read_write   read_write   read_write   read_write   read_write

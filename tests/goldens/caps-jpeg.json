@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "command": "caps",
+  "files": [
+    {
+      "path": "JPEG",
+      "ok": true,
+      "capabilities": {
+        "file_type": "JPEG",
+        "preferred_backend": "exiv2",
+        "sidecar_recommended": false,
+        "backends": [
+          {
+            "backend": "exiv2",
+            "available": true,
+            "identify_only": false,
+            "categories": {
+              "exif": "read_write",
+              "iptc_iim": "read_write",
+              "xmp": "read_write",
+              "icc": "read_write",
+              "thumbnail": "read_write"
+            },
+            "location": {
+              "gps_exif": "read_write",
+              "named_place": "read_write",
+              "xmp_location": "read_write",
+              "container_gps": "none",
+              "geotiff": "none"
+            },
+            "notes": ""
+          },
+          {
+            "backend": "exiftool",
+            "available": true,
+            "identify_only": false,
+            "categories": {
+              "exif": "read_write",
+              "iptc_iim": "read_write",
+              "xmp": "read_write",
+              "icc": "read_write",
+              "thumbnail": "read_write"
+            },
+            "location": {
+              "gps_exif": "read_write",
+              "named_place": "read_write",
+              "xmp_location": "read_write",
+              "container_gps": "none",
+              "geotiff": "none"
+            },
+            "notes": ""
+          }
+        ]
+      }
+    }
+  ]
+}

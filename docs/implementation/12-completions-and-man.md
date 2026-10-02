@@ -1,6 +1,8 @@
 # Session 12 — Completions and man pages
 
-Status: **not started**
+Status: **complete**
+
+Landed: `tools/gen/docs_gen.{hpp,cpp}` and `umm-gen-docs` emit bash/zsh/fish completions plus `umm(1)` from `commands()` and `accessor_names()` at build time (`build/.../generated/`). CMake installs them to GNUInstallDirs locations. Contract tests in `tests/cli/test_cli.cpp` and `tests/build/test_docs.py`.
 
 ## Goal
 

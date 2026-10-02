@@ -1,0 +1,6 @@
+umm VERSION
+libumm VERSION
+
+STANDARD                 VERSION  SOURCE
+IPTC Photo Metadata      2025.1   IPTC Photo Metadata Technical Reference
+IPTC Video Metadata Hub  1.7      IPTC Video Metadata Hub Recommendation

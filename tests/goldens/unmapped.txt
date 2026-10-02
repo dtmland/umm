@@ -1,0 +1,8 @@
+FAMILY  KEY                                 VALUE
+Exif    Exif.Image.YCbCrPositioning         1
+Exif    Exif.Image.ExifTag                  38
+Exif    Exif.Photo.ExifVersion              48 50 51 50
+Exif    Exif.Photo.ComponentsConfiguration  1 2 3 0
+Exif    Exif.Photo.ColorSpace               65535
+Exif    Exif.Photo.0xfedc                   vendor-exif
+Xmp     Xmp.libummtest.UnknownWidget        vendor-widget

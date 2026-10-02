@@ -1,0 +1,3 @@
+PROPERTY             VALUE            
+iptc.photo.creator   Jane Doe
+iptc.photo.keywords  nature, landscape
