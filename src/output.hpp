@@ -1,5 +1,5 @@
 // Output formatters: human table (default) and JSON with schema_version.
-// Schema: docs/implementation/json-schema.md.
+// Schema: docs/user/json-schema.md.
 #pragma once
 
 #include <map>

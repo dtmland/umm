@@ -1,8 +1,8 @@
 # Release checklist
 
-Stub for [session 15](implementation/15-documentation.md). Use this before
-tagging an umm release. The tag-triggered workflow is
-`.github/workflows/release.yml` (session 14).
+Use this before tagging an umm release. The tag-triggered workflow is
+`.github/workflows/release.yml`. Conveyance and artifact names are also
+summarized in [sysadmin install](sysadmin/install.md).
 
 ## Version bump
 
