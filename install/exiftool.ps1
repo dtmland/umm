@@ -64,8 +64,12 @@ while ($i -lt $args.Count) {
     }
 }
 
-function Get-TomlEscape([string]$Value) {
-    return ($Value -replace '\\', '\\' -replace '"', '\"')
+function Format-TomlString([string]$Value) {
+    if ($Value.Contains("'")) {
+        $esc = ($Value -replace '\\', '\\' -replace '"', '\"')
+        return "`"$esc`""
+    }
+    return "'$Value'"
 }
 
 function Write-UmmConfig([string]$ConfigPath, [string]$ToolPath) {
@@ -73,8 +77,8 @@ function Write-UmmConfig([string]$ConfigPath, [string]$ToolPath) {
     if ($dir) {
         New-Item -ItemType Directory -Force -Path $dir | Out-Null
     }
-    $esc = Get-TomlEscape $ToolPath
-    $text = "# Written by umm setup exiftool. Discovery step 1 (explicit config).`nexiftool = `"$esc`"`n"
+    $quoted = Format-TomlString $ToolPath
+    $text = "# ExifTool path`nexiftool = $quoted`n"
     $utf8 = New-Object System.Text.UTF8Encoding $false
     [System.IO.File]::WriteAllText($ConfigPath, $text, $utf8)
     Write-Output "exiftool.ps1: recorded $ToolPath in $ConfigPath"

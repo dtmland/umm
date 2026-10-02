@@ -36,6 +36,9 @@ struct ConfigParse {
 
 // Minimal TOML subset: comments, [tables] (ignored), and `key = "string"` or
 // `key = 'literal'`. Unknown keys are ignored for forward compatibility.
+// Paths are written as single-quoted literals so Windows backslashes stay
+// human-readable. In double quotes, `\\` and `\"` are escapes; other
+// backslashes are literal (so `C:\Users\...` is a path, not an error).
 ConfigParse parse_config(std::string_view text);
 
 // Loads the first existing candidate. Missing config is not an error.
@@ -59,6 +62,9 @@ struct ExifToolDiscovery {
   std::filesystem::path path;
   std::filesystem::path perl;  // empty when not relevant (Windows .exe)
 };
+
+// True for a standalone Windows ExifTool.exe (no separate Perl).
+bool exiftool_is_windows_exe(const std::filesystem::path& path);
 
 // CLI-side discovery (config → UMM_EXIFTOOL → PATH), matching libumm.
 ExifToolDiscovery discover_exiftool(const Config& config, const GetEnv& env);

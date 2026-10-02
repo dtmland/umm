@@ -89,6 +89,8 @@ static void test_cli_behaviour() {
   std::string out, err;
   CHECK(run_cli({"--help"}, &out) == 0 && out.find("Commands:") != std::string::npos);
   CHECK(run_cli({"set", "--help"}, &out) == 0 && out.find("--policy") != std::string::npos);
+  CHECK(run_cli({"doctor", "--help"}, &out) == 0 &&
+        out.find("Windows ExifTool.exe does not need Perl") != std::string::npos);
   CHECK(run_cli({}) == 1);
   CHECK(run_cli({"not-a-command"}, nullptr, &err) == 1 && err.find("unknown command") != std::string::npos);
   CHECK(run_cli({"read"}) == 1);
@@ -133,9 +135,34 @@ static void test_config() {
         fs::path("/opt/et/exiftool"));
   CHECK(parse_config("exiftool = 'C:\\tools\\exiftool.exe'\n").config.exiftool ==
         fs::path("C:\\tools\\exiftool.exe"));
+  CHECK(parse_config("exiftool = \"C:\\Users\\me\\ExifTool.exe\"\n").config.exiftool ==
+        fs::path("C:\\Users\\me\\ExifTool.exe"));
+  CHECK(parse_config("exiftool = \"C:\\\\Users\\\\me\\\\ExifTool.exe\"\n").config.exiftool ==
+        fs::path("C:\\Users\\me\\ExifTool.exe"));
   CHECK(parse_config("").config.exiftool.empty());
   CHECK(!parse_config("exiftool = 5\n").error.empty());
   CHECK(!parse_config("garbage\n").error.empty());
+  CHECK(exiftool_is_windows_exe(fs::path("C:/Programs/ExifTool/ExifTool.exe")));
+  CHECK(!exiftool_is_windows_exe(fs::path("/usr/bin/exiftool")));
+
+  fs::path cfgdir = fs::temp_directory_path() / "umm_cli_test_write_cfg";
+  fs::remove_all(cfgdir);
+  fs::path cfg = cfgdir / "config.toml";
+  Config written;
+  written.exiftool = fs::path("C:\\Users\\me\\ExifTool.exe");
+  std::string werr;
+  CHECK(write_config_file(cfg, written, &werr));
+  std::string body;
+  {
+    // Close before remove_all: Windows cannot delete a still-open file.
+    std::ifstream in(cfg);
+    body.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+  }
+  CHECK(body.find("# ExifTool path") != std::string::npos);
+  CHECK(body.find("Discovery step") == std::string::npos);
+  CHECK(body.find("exiftool = 'C:\\Users\\me\\ExifTool.exe'") != std::string::npos);
+  CHECK(parse_config(body).config.exiftool == written.exiftool);
+  fs::remove_all(cfgdir);
 
   GetEnv env = [](std::string_view k) -> std::optional<std::string> {
     if (k == "HOME") return std::string("/home/u");

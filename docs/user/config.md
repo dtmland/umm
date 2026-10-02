@@ -18,12 +18,22 @@ even if the file did not exist.
 ## Keys
 
 ```toml
-# Written by umm setup exiftool. Discovery step 1 (explicit config).
-exiftool = "/home/you/bin/exiftool"
+# ExifTool path
+exiftool = '/home/you/bin/exiftool'
+```
+
+On Windows, `umm setup exiftool` writes a single-quoted path so backslashes
+stay readable:
+
+```toml
+# ExifTool path
+exiftool = 'C:\Users\you\AppData\Local\Programs\ExifTool\ExifTool.exe'
 ```
 
 Comments (`#`) are allowed. Unknown keys are ignored. The path is applied as
-libumm's explicit ExifTool location. umm never mutates `PATH`.
+libumm's explicit ExifTool location. umm never mutates `PATH`. Double-quoted
+values still work; `\\` and `\"` are the only escapes — other backslashes are
+literal, so a hand-edited `exiftool = "C:\Users\..."` is accepted.
 
 ## Discovery order
 

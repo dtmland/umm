@@ -76,6 +76,17 @@ umm_escape_toml() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
+umm_toml_string() {
+  case $1 in
+    *"'"*)
+      printf '"%s"' "$(umm_escape_toml "$1")"
+      ;;
+    *)
+      printf "'%s'" "$1"
+      ;;
+  esac
+}
+
 umm_default_config() {
   os=$(uname -s)
   if [ -n "${XDG_CONFIG_HOME:-}" ]; then
@@ -98,10 +109,10 @@ umm_write_config() {
   tool=$2
   dir=$(dirname -- "$cfg")
   mkdir -p "$dir"
-  esc=$(umm_escape_toml "$tool")
+  quoted=$(umm_toml_string "$tool")
   {
-    printf '# Written by umm setup exiftool. Discovery step 1 (explicit config).\n'
-    printf 'exiftool = "%s"\n' "$esc"
+    printf '# ExifTool path\n'
+    printf 'exiftool = %s\n' "$quoted"
   } >"$cfg"
   printf 'exiftool.sh: recorded %s in %s\n' "$tool" "$cfg"
 }

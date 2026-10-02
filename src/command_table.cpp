@@ -143,7 +143,7 @@ std::string command_help(const CommandSpec& cmd) {
     os << "\nReports which backends are usable, which ExifTool (and Perl, where "
           "relevant) was found and via which discovery step (config / "
           "UMM_EXIFTOOL / PATH), and umm setup exiftool remediation when "
-          "ExifTool is missing.\n";
+          "ExifTool is unavailable. Windows ExifTool.exe does not need Perl.\n";
   }
   return os.str();
 }

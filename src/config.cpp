@@ -70,12 +70,13 @@ bool parse_string(const std::string& v, std::string& out) {
     if (c == q) break;
     if (q == '"' && c == '\\') {
       if (++i >= v.size()) return false;
-      switch (v[i]) {
-        case '\\': out += '\\'; break;
-        case '"': out += '"'; break;
-        case 'n': out += '\n'; break;
-        case 't': out += '\t'; break;
-        default: return false;
+      // Only \\ and \" are escapes. Other backslashes are literal so Windows
+      // paths in double quotes (C:\Users\...) stay human-editable.
+      if (v[i] == '\\' || v[i] == '"')
+        out += v[i];
+      else {
+        out += '\\';
+        out += v[i];
       }
     } else {
       out += c;
@@ -148,12 +149,14 @@ fs::path primary_config_path(Platform platform, const GetEnv& env) {
 
 namespace {
 
-std::string toml_escape(const std::string& s) {
-  std::string out;
+std::string toml_quote(const std::string& s) {
+  if (s.find('\'') == std::string::npos) return "'" + s + "'";
+  std::string out = "\"";
   for (char c : s) {
     if (c == '\\' || c == '"') out += '\\';
     out += c;
   }
+  out += '"';
   return out;
 }
 
@@ -198,16 +201,18 @@ fs::path search_path(const GetEnv& env, std::initializer_list<const char*> names
   return {};
 }
 
-bool is_windows_exe(const fs::path& p) {
+}  // namespace
+
+bool exiftool_is_windows_exe(const fs::path& p) {
   std::string ext = p.extension().string();
   for (char& c : ext)
     if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
   if (ext == ".exe") return true;
   std::string name = p.filename().string();
+  for (char& c : name)
+    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
   return name == "exiftool.exe";
 }
-
-}  // namespace
 
 bool write_config_file(const fs::path& path, const Config& config, std::string* error) {
   std::error_code ec;
@@ -221,9 +226,9 @@ bool write_config_file(const fs::path& path, const Config& config, std::string* 
     if (error) *error = "cannot write " + path.string();
     return false;
   }
-  out << "# Written by umm setup exiftool. Discovery step 1 (explicit config).\n";
+  out << "# ExifTool path\n";
   if (!config.exiftool.empty())
-    out << "exiftool = \"" << toml_escape(config.exiftool.string()) << "\"\n";
+    out << "exiftool = " << toml_quote(config.exiftool.string()) << "\n";
   return true;
 }
 
@@ -252,7 +257,8 @@ ExifToolDiscovery discover_exiftool(const Config& config, const GetEnv& env) {
       d.path = found;
     }
   }
-  if (!d.path.empty() && !is_windows_exe(d.path)) d.perl = search_path(env, {"perl", "perl.exe"});
+  if (!d.path.empty() && !exiftool_is_windows_exe(d.path))
+    d.perl = search_path(env, {"perl", "perl.exe"});
   return d;
 }
 

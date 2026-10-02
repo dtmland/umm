@@ -10,6 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -1019,10 +1020,18 @@ bool exiftool_backend_available() {
   return b && b->availability().available;
 }
 
-std::string exiftool_remediation(const ExifToolDiscovery& d) {
+std::string exiftool_remediation(const ExifToolDiscovery& d, std::string_view reason) {
   std::ostringstream os;
-  os << "ExifTool was not found (discovery: " << discovery_step_name(d.step) << ").\n"
-     << "Install it with: umm setup exiftool\n"
+  if (d.path.empty()) {
+    os << "ExifTool was not found (discovery: " << discovery_step_name(d.step) << ").\n";
+  } else {
+    os << "ExifTool is not usable (discovery: " << discovery_step_name(d.step) << ").\n"
+       << "  path    " << d.path.string() << "\n";
+    if (!reason.empty()) os << "  reason  " << reason << "\n";
+    if (exiftool_is_windows_exe(d.path) && reason.find("Perl") != std::string_view::npos)
+      os << "Windows ExifTool.exe does not need a separate Perl interpreter.\n";
+  }
+  os << "Install it with: umm setup exiftool\n"
      << "Discovery order: config file, UMM_EXIFTOOL, PATH.\n";
   return os.str();
 }
@@ -1068,6 +1077,13 @@ ExitCode run_doctor(const ParsedArgs& args, std::ostream& out, std::ostream& err
   if (!eta.version.empty()) human += "  version    " + eta.version + "\n";
   human += "  tested     " + std::string(UMM_EXIFTOOL_TESTED_VERSION) + " (advisory)\n";
   if (!disc.perl.empty()) human += "  perl       " + disc.perl.string() + "\n";
+  const bool windows_exe_perl =
+      !eta.available && exiftool_is_windows_exe(disc.path) &&
+      eta.reason.find("Perl") != std::string::npos;
+  if (windows_exe_perl) {
+    etj.emplace_back("note", Json("Windows ExifTool.exe does not need a separate Perl interpreter"));
+    human += "  note       Windows ExifTool.exe does not need a separate Perl interpreter\n";
+  }
   Json::Object extra{{"backends", Json(std::move(backends))}, {"exiftool", Json(std::move(etj))}};
   const bool et_ok = eta.available;
   if (!et_ok) {
@@ -1221,7 +1237,10 @@ ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& er
       cmd.name != "version") {
     if (!exiftool_backend_available()) {
       ConfigParse cfg = load_config(current_platform(), process_env());
-      err << exiftool_remediation(discover_exiftool(cfg.config, process_env()));
+      std::string reason;
+      if (const umm::Backend* b = umm::BackendManager::instance().get("exiftool"))
+        reason = b->availability().reason;
+      err << exiftool_remediation(discover_exiftool(cfg.config, process_env()), reason);
       return ExitCode::backend;
     }
   }
