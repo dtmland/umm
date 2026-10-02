@@ -1,6 +1,15 @@
 # Session 14 — Release engineering
 
-Status: **not started**
+Status: **complete**
+
+Landed: tag-triggered draft `.github/workflows/release.yml` (Linux/Windows/macOS,
+`SHA256SUMS`, corresponding Exiv2/Expat/zlib source, no ExifTool, no
+package-manager publish). `THIRD-PARTY-NOTICES.md` + `licenses/` copied from
+pinned libumm; `tools/build/corresponding-source.json` reuses those pins.
+Packaging helpers and offline `tests/build/test_release.py`. `docs/release-checklist.md`
+lists artifact names for session 15. A live tag / `workflow_dispatch` dry-run
+was not executed in this session; the bar is the workflow file, contract
+tests, and the artifact-name list.
 
 ## Goal
 

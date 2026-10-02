@@ -69,7 +69,7 @@ New design decisions that cannot be resolved from the concept go under
 | 11 | [Doctor and setup](11-doctor-and-setup.md) | 4 Tooling | 05, 07 | complete |
 | 12 | [Completions and man pages](12-completions-and-man.md) | 4 Tooling | 04 (after 06–11) | complete |
 | 13 | [Integration tests](13-integration-tests.md) | 5 Harden | 06–11 | complete |
-| 14 | [Release engineering](14-release-engineering.md) | 5 Harden | 03, 12 | not started |
+| 14 | [Release engineering](14-release-engineering.md) | 5 Harden | 03, 12 | complete |
 | 15 | [User, sysadmin, and developer docs](15-documentation.md) | 5 Harden | 04–14 | not started |
 
 When a session is finished, set its Progress to **complete** in this table

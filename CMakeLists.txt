@@ -105,6 +105,15 @@ install(FILES "${UMM_GENERATED_DIR}/completions/_umm"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/zsh/site-functions)
 install(FILES "${UMM_GENERATED_DIR}/completions/umm.fish"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/fish/vendor_completions.d)
+install(FILES
+  "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+  "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE.md"
+  "${CMAKE_CURRENT_SOURCE_DIR}/THIRD-PARTY-NOTICES.md"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tools/build/corresponding-source.json"
+  DESTINATION ${CMAKE_INSTALL_DOCDIR})
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/licenses/"
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}/licenses
+        FILES_MATCHING PATTERN "*.txt")
 
 enable_testing()
 add_executable(umm-cli-tests tests/cli/test_cli.cpp)

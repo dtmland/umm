@@ -1,0 +1,257 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2025
+          - macos-15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Ensure python3 on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command python3 -ErrorAction SilentlyContinue)) {
+            $python = (Get-Command python).Source
+            $dir = Join-Path $env:RUNNER_TEMP 'python3-shim'
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            Copy-Item $python (Join-Path $dir 'python3.exe')
+            Add-Content -Path $env:GITHUB_PATH -Value $dir
+          }
+
+      - name: Run build-contract tests
+        run: python3 -m unittest discover -s tests/build -v
+
+      - name: Load pins
+        shell: bash
+        run: sh tools/build/pins.sh
+
+      - name: Install Linux packages
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -eu
+          packages=$(grep -E -v '^[[:space:]]*(#|$)' tools/build/linux-packages.txt)
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $packages
+
+      - name: Setup Ninja
+        if: runner.os != 'Linux'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Enable MSVC developer environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Cache libumm backend downloads
+        uses: actions/cache@v4
+        with:
+          path: build/default/_deps/libumm-src/.cache
+          key: ${{ runner.os }}-release-${{ env.UMM_LIBUMM_VERSION }}-${{ env.UMM_LIBUMM_SHA256 }}
+
+      - name: Configure
+        run: cmake --preset default -DUMM_REQUIRE_EXIV2=ON -DUMM_REQUIRE_EXIFTOOL=ON
+
+      - name: Report acquired backends
+        shell: bash
+        run: cat build/default/backends-acquired.txt
+
+      - name: Build
+        run: cmake --build --preset default
+
+      - name: Test
+        run: ctest --preset default
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          set -eu
+          VERSION=$(python3 tools/build/generate_release_notes.py --version-only)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            expected="${GITHUB_REF_NAME#v}"
+            if [ "$expected" != "$VERSION" ]; then
+              echo "tag $GITHUB_REF_NAME does not match CMake project version $VERSION" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Install prefix and package archive
+        shell: bash
+        run: |
+          set -eu
+          prefix="${RUNNER_TEMP}/umm-prefix"
+          out="${GITHUB_WORKSPACE}/release-dist"
+          cmake --install build/default --prefix "$prefix"
+          python3 tools/build/package_release.py package \
+            --install-prefix "$prefix" \
+            --source-root "${GITHUB_WORKSPACE}" \
+            --version "$VERSION" \
+            --os "${{ matrix.os }}" \
+            --output-dir "$out"
+
+      - name: Upload binary archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}
+          path: release-dist/umm-*.tar.gz
+          if-no-files-found: error
+
+  corresponding-source:
+    name: corresponding-source
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run build-contract tests
+        run: python3 -m unittest discover -s tests/build -v
+
+      - name: Load pins
+        shell: bash
+        run: sh tools/build/pins.sh
+
+      - name: Cache corresponding-source downloads
+        uses: actions/cache@v4
+        with:
+          path: .cache/corresponding-source
+          key: corresponding-source-${{ hashFiles('tools/build/corresponding-source.json') }}
+
+      - name: Resolve version
+        shell: bash
+        run: |
+          set -eu
+          VERSION=$(python3 tools/build/generate_release_notes.py --version-only)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            expected="${GITHUB_REF_NAME#v}"
+            if [ "$expected" != "$VERSION" ]; then
+              echo "tag $GITHUB_REF_NAME does not match CMake project version $VERSION" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Fetch corresponding source
+        run: |
+          set -eu
+          mkdir -p dist
+          python3 tools/build/fetch_corresponding_source.py \
+            --output-dir dist \
+            --cache-dir .cache/corresponding-source
+
+      - name: Source archive and notes
+        run: |
+          set -eu
+          mkdir -p dist notes
+          git archive --format=tar.gz --prefix="umm-${VERSION}/" \
+            -o "dist/umm-${VERSION}-src.tar.gz" HEAD
+          python3 tools/build/generate_release_notes.py --output notes/release-notes.md
+
+      - name: Upload corresponding source
+        uses: actions/upload-artifact@v4
+        with:
+          name: corresponding-source
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: notes/release-notes.md
+          if-no-files-found: error
+
+  publish:
+    name: checksums-and-release
+    needs:
+      - build
+      - corresponding-source
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download binary archives
+        uses: actions/download-artifact@v4.1.3
+        with:
+          pattern: binary-*
+          path: dist
+          merge-multiple: true
+
+      - name: Download corresponding source
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: corresponding-source
+          path: dist
+
+      - name: Download release notes
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: release-notes
+          path: notes
+
+      - name: Write SHA256SUMS
+        run: |
+          set -eu
+          python3 tools/build/package_release.py sha256sums \
+            --dir dist \
+            --output dist/SHA256SUMS
+          test -s dist/SHA256SUMS
+          grep -E 'umm-.*ubuntu-24.04\.tar\.gz$' dist/SHA256SUMS
+          grep -E 'umm-.*windows-2025\.tar\.gz$' dist/SHA256SUMS
+          grep -E 'umm-.*macos-15\.tar\.gz$' dist/SHA256SUMS
+          grep -E 'exiv2-.*\.tar\.gz$' dist/SHA256SUMS
+          grep -E 'expat-.*\.tar\.gz$' dist/SHA256SUMS
+          grep -E 'zlib-.*\.tar\.gz$' dist/SHA256SUMS
+          grep -E 'umm-.*-src\.tar\.gz$' dist/SHA256SUMS
+          ! grep -Ei 'exiftool' dist/SHA256SUMS
+
+      - name: Upload SHA256SUMS and dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dist
+          path: |
+            dist/*
+            notes/release-notes.md
+          if-no-files-found: error
+
+      - name: Create draft GitHub release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          VERSION=$(python3 tools/build/generate_release_notes.py --version-only)
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --title "umm ${VERSION}" \
+            --notes-file notes/release-notes.md \
+            dist/*
