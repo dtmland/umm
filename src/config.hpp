@@ -45,4 +45,22 @@ ConfigParse load_config(Platform platform, const GetEnv& env);
 // Never mutates PATH or the environment.
 umm::ExifToolConfig to_libumm(const Config& config);
 
+// First candidate path (created by `umm setup exiftool` even if missing).
+std::filesystem::path primary_config_path(Platform platform, const GetEnv& env);
+
+// Writes a minimal TOML with the `exiftool` key. Creates parent directories.
+bool write_config_file(const std::filesystem::path& path, const Config& config, std::string* error);
+
+enum class DiscoveryStep { config, env, path, not_found };
+const char* discovery_step_name(DiscoveryStep step) noexcept;
+
+struct ExifToolDiscovery {
+  DiscoveryStep step{DiscoveryStep::not_found};
+  std::filesystem::path path;
+  std::filesystem::path perl;  // empty when not relevant (Windows .exe)
+};
+
+// CLI-side discovery (config → UMM_EXIFTOOL → PATH), matching libumm.
+ExifToolDiscovery discover_exiftool(const Config& config, const GetEnv& env);
+
 }  // namespace umm_cli

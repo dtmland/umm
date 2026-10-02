@@ -43,9 +43,11 @@ std::vector<CommandSpec> build() {
       {"geotag", "umm geotag --track TRACK [options] FILE...", "write GPS from a track log",
        Operands::files, 1,
        {{"track", 0, true, "TRACK", "GPX/NMEA/KML track file"},
-        {"offset", 0, true, "SECONDS", "offset for naive timestamps"}, kDryRun},
+        {"offset", 0, true, "MINUTES", "naive UTC offset in minutes (not clock skew)"}, kPolicy,
+        kDryRun},
        true},
-      {"doctor", "umm doctor [options]", "report backend availability", Operands::none, 0, {}, false},
+      {"doctor", "umm doctor [options]", "report backend availability and ExifTool discovery",
+       Operands::none, 0, {}, false},
       {"setup", "umm setup exiftool", "install ExifTool for the current user", Operands::args, 1,
        {}, false},
       {"version", "umm version [options]", "tool, libumm, and standards versions", Operands::none, 0, {},
@@ -120,6 +122,29 @@ std::string command_help(const CommandSpec& cmd) {
   for (const FlagSpec& f : cmd.flags) print_flag(os, f);
   for (const FlagSpec& f : global_flags()) print_flag(os, f);
   if (cmd.batch_files) print_flag(os, kRecursive);
+  if (cmd.name == "geotag") {
+    os << "\n--track is required. Formats are those umm::importTrack accepts "
+          "(GPX/NMEA/KML); the CLI does not parse tracks.\n"
+          "--offset sets MatchOptions::naive_utc_offset_minutes when the capture "
+          "time has no zone. Units are minutes (0 treats naive times as UTC).\n";
+  }
+  if (cmd.name == "setup") {
+    os << "\nInstalls ExifTool for the current user and records the path in the "
+          "umm config file (exiftool key). Does not modify PATH. umm never "
+          "bundles ExifTool.\n\n"
+          "Windows: winget install -e --id OliverBetz.ExifTool (standalone "
+          "exiftool.exe, no Perl). Fallback: checksum-verified upstream .zip "
+          "into a per-user prefix.\n"
+          "Linux: apt (libimage-exiftool-perl), dnf (perl-Image-ExifTool), "
+          "pacman (perl-image-exiftool); else checksum-verified tarball.\n"
+          "macOS: brew install exiftool; else checksum-verified tarball.\n";
+  }
+  if (cmd.name == "doctor") {
+    os << "\nReports which backends are usable, which ExifTool (and Perl, where "
+          "relevant) was found and via which discovery step (config / "
+          "UMM_EXIFTOOL / PATH), and umm setup exiftool remediation when "
+          "ExifTool is missing.\n";
+  }
   return os.str();
 }
 

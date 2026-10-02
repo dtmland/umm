@@ -337,8 +337,8 @@ std::string format_table(const std::vector<FileReport>& files, const std::vector
     }
     std::size_t idw = 8, valw = 5;
     for (const PropertyRow& p : f.properties) {
-      idw = std::max(idw, p.id.size());
-      valw = std::max(valw, p.summary.size());
+      if (p.id.size() > idw) idw = p.id.size();
+      if (p.summary.size() > valw) valw = p.summary.size();
     }
     auto pad = [](std::string s, std::size_t w) {
       if (s.size() < w) s.append(w - s.size(), ' ');

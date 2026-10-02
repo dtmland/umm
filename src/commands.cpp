@@ -2,16 +2,41 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <optional>
 #include <ostream>
 #include <sstream>
+#include <stdexcept>
+#include <string>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#else
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 #include "batch.hpp"
+#include "config.hpp"
 #include "output.hpp"
 #include "property.hpp"
 #include "umm/umm.hpp"
 #include "value_format.hpp"
+
+#ifndef UMM_EXIFTOOL_TESTED_VERSION
+#define UMM_EXIFTOOL_TESTED_VERSION "13.59"
+#endif
 
 #ifndef UMM_CLI_VERSION
 #define UMM_CLI_VERSION "0.1.0"
@@ -85,8 +110,8 @@ ExitCode run_version(const ParsedArgs& args, std::ostream& out) {
   if (rows.empty()) return ExitCode::ok;
   std::size_t sw = 8, vw = 7;
   for (const auto& s : rows) {
-    sw = std::max(sw, s.standard.size());
-    vw = std::max(vw, s.version.size());
+    if (s.standard.size() > sw) sw = s.standard.size();
+    if (s.version.size() > vw) vw = s.version.size();
   }
   auto pad = [](std::string s, std::size_t w) {
     if (s.size() < w) s.append(w - s.size(), ' ');
@@ -240,8 +265,8 @@ Json unmapped_json(const std::vector<umm::UnmappedEntry>& entries) {
 std::string format_unmapped(const std::vector<umm::UnmappedEntry>& entries) {
   std::size_t fw = 6, kw = 3;
   for (const auto& e : entries) {
-    fw = std::max(fw, e.key.family.size());
-    kw = std::max(kw, e.key.key.size());
+    if (e.key.family.size() > fw) fw = e.key.family.size();
+    if (e.key.key.size() > kw) kw = e.key.key.size();
   }
   auto pad = [](std::string s, std::size_t w) {
     if (s.size() < w) s.append(w - s.size(), ' ');
@@ -283,7 +308,9 @@ Json conflicts_json(const std::vector<umm::ConflictEntry>& entries) {
 std::string format_conflicts(const std::vector<umm::ConflictEntry>& entries) {
   if (entries.empty()) return "no conflicts\n";
   std::size_t iw = 8;
-  for (const auto& e : entries) iw = std::max(iw, e.property_id.size());
+  for (const auto& e : entries) {
+    if (e.property_id.size() > iw) iw = e.property_id.size();
+  }
   auto pad = [](std::string s, std::size_t w) {
     if (s.size() < w) s.append(w - s.size(), ' ');
     return s;
@@ -886,10 +913,318 @@ ExitCode run_caps(const ParsedArgs& args, std::ostream& out, std::ostream& err) 
   return summarize(failures);
 }
 
+const char* match_kind_name(umm::TrackMatchKind k) noexcept {
+  switch (k) {
+    case umm::TrackMatchKind::exact:
+      return "exact";
+    case umm::TrackMatchKind::interpolated:
+      return "interpolated";
+    case umm::TrackMatchKind::nearest:
+      return "nearest";
+  }
+  return "exact";
+}
+
+ExitCode run_geotag(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+  auto policy = parse_policy(args, err);
+  if (!policy) return ExitCode::usage;
+  auto tit = args.options.find("track");
+  if (tit == args.options.end() || tit->second.empty()) {
+    err << "umm geotag: --track is required\n";
+    return ExitCode::usage;
+  }
+  umm::MatchOptions match_opts;
+  auto oit = args.options.find("offset");
+  if (oit != args.options.end()) {
+    const std::string& s = oit->second;
+    if (s.empty()) {
+      err << "umm geotag: --offset must be an integer number of minutes\n";
+      return ExitCode::usage;
+    }
+    std::size_t idx = 0;
+    try {
+      long v = std::stol(s, &idx, 10);
+      if (idx != s.size() || v < -24 * 60 || v > 24 * 60) throw std::out_of_range("offset");
+      match_opts.naive_utc_offset_minutes = static_cast<int>(v);
+    } catch (...) {
+      err << "umm geotag: --offset must be an integer number of minutes\n";
+      return ExitCode::usage;
+    }
+  }
+  umm::Result<umm::Track> track = umm::importTrack(tit->second);
+  if (!track.ok()) {
+    err << "umm geotag: " << track.error().message << "\n";
+    return exit_code_for(track.error().code);
+  }
+  umm::WriteOptions wopts = write_options(args);
+  wopts.policy = *policy;
+  const bool dry = wopts.dry_run;
+  std::vector<fs::path> files = expand_operands(args.operands, args.recursive);
+  std::vector<FileReport> reports;
+  std::vector<ExitCode> failures;
+  std::string human;
+  const bool multi = files.size() > 1;
+  for (const fs::path& file : files) {
+    umm::Result<void> pre = check_file(file);
+    if (!pre.ok()) {
+      reports.push_back({file.string(), false, pre.error().message, {}});
+      failures.push_back(exit_code_for(pre.error().code));
+      continue;
+    }
+    umm::Result<umm::Metadata> r = umm::read(file, read_options(args));
+    if (!r.ok()) {
+      reports.push_back({file.string(), false, r.error().message, {}});
+      failures.push_back(exit_code_for(r.error().code));
+      continue;
+    }
+    umm::Metadata meta = std::move(r).value();
+    umm::Result<umm::TrackMatch> match = umm::matchTrack(meta, track.value(), match_opts);
+    if (!match.ok()) {
+      reports.push_back({file.string(), false, match.error().message, {}});
+      failures.push_back(exit_code_for(match.error().code));
+      continue;
+    }
+    umm::Result<void> set = meta.setGps(match.value().position);
+    if (!set.ok()) {
+      reports.push_back({file.string(), false, set.error().message, {}});
+      failures.push_back(exit_code_for(set.error().code));
+      continue;
+    }
+    umm::Value gps;
+    gps.data = match.value().position;
+    FileReport report{file.string(), true, "", {}};
+    report.json_extra.emplace_back("gps", value_to_json(gps));
+    report.json_extra.emplace_back("match", Json(match_kind_name(match.value().kind)));
+    if (dry) {
+      reports.push_back(report);
+      if (multi) human += "== " + file.string() + " ==\n";
+      human += "GPS  " + value_summary(gps) + "\nMATCH  " + match_kind_name(match.value().kind) + "\n";
+      continue;
+    }
+    umm::Result<umm::WriteReport> wr = umm::write(file, meta, wopts);
+    if (!wr.ok()) {
+      reports.push_back({file.string(), false, wr.error().message, {}});
+      failures.push_back(exit_code_for(wr.error().code));
+      continue;
+    }
+    report.json_extra.emplace_back("report", write_report_json(wr.value()));
+    reports.push_back(report);
+  }
+  emit_mutate(args, reports, failures, files.size(), human, dry, out, err);
+  return summarize(failures);
+}
+
+bool exiftool_backend_available() {
+  const umm::Backend* b = umm::BackendManager::instance().get("exiftool");
+  return b && b->availability().available;
+}
+
+std::string exiftool_remediation(const ExifToolDiscovery& d) {
+  std::ostringstream os;
+  os << "ExifTool was not found (discovery: " << discovery_step_name(d.step) << ").\n"
+     << "Install it with: umm setup exiftool\n"
+     << "Discovery order: config file, UMM_EXIFTOOL, PATH.\n";
+  return os.str();
+}
+
+Json backend_avail_json(const umm::Backend& b) {
+  umm::BackendAvailability a = b.availability();
+  return Json(Json::Object{{"id", Json(b.id())},
+                           {"available", Json(a.available)},
+                           {"version", Json(a.version)},
+                           {"reason", Json(a.reason)}});
+}
+
+ExitCode run_doctor(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+  (void)err;
+  ConfigParse cfg = load_config(current_platform(), process_env());
+  ExifToolDiscovery disc = discover_exiftool(cfg.config, process_env());
+  umm::BackendManager& mgr = umm::BackendManager::instance();
+  Json::Array backends;
+  std::string human = "BACKEND     AVAILABLE  VERSION\n";
+  auto pad = [](std::string s, std::size_t w) {
+    if (s.size() < w) s.append(w - s.size(), ' ');
+    return s;
+  };
+  for (const std::string& id : mgr.backendIds()) {
+    const umm::Backend* b = mgr.get(id);
+    if (!b) continue;
+    umm::BackendAvailability a = b->availability();
+    backends.emplace_back(backend_avail_json(*b));
+    human += pad(id, 11) + "  " + pad(a.available ? "yes" : "no", 9) + "  " +
+             (a.available ? a.version : a.reason) + "\n";
+  }
+  const umm::Backend* et = mgr.get("exiftool");
+  umm::BackendAvailability eta;
+  if (et) eta = et->availability();
+  Json::Object etj{{"discovery", Json(discovery_step_name(disc.step))},
+                   {"path", Json(disc.path.string())},
+                   {"version", Json(eta.version)},
+                   {"tested_version", Json(UMM_EXIFTOOL_TESTED_VERSION)}};
+  if (!disc.perl.empty()) etj.emplace_back("perl", Json(disc.perl.string()));
+  human += "\nEXIFTOOL\n";
+  human += "  discovery  " + std::string(discovery_step_name(disc.step)) + "\n";
+  if (!disc.path.empty()) human += "  path       " + disc.path.string() + "\n";
+  if (!eta.version.empty()) human += "  version    " + eta.version + "\n";
+  human += "  tested     " + std::string(UMM_EXIFTOOL_TESTED_VERSION) + " (advisory)\n";
+  if (!disc.perl.empty()) human += "  perl       " + disc.perl.string() + "\n";
+  Json::Object extra{{"backends", Json(std::move(backends))}, {"exiftool", Json(std::move(etj))}};
+  const bool et_ok = eta.available;
+  if (!et_ok) {
+    extra.emplace_back("remediation", Json("umm setup exiftool"));
+    human += "\nREMEDIATION\n  umm setup exiftool\n";
+    Json::Array lost;
+    std::string lost_h;
+    for (const char* type : {"JPEG", "PNG", "TIFF", "WEBP", "MP4", "MOV", "HEIC", "CR3"}) {
+      umm::Result<umm::Capabilities> caps = umm::capabilitiesForType(type);
+      if (!caps.ok()) continue;
+      bool interesting = caps.value().preferred_backend == "exiftool";
+      for (const auto& b : caps.value().backends)
+        if (b.backend == "exiv2" && b.identify_only) interesting = true;
+      if (!interesting) continue;
+      lost.emplace_back(capabilities_json(caps.value()));
+      lost_h += format_capabilities(caps.value());
+    }
+    extra.emplace_back("lost", Json(std::move(lost)));
+    if (!lost_h.empty()) human += "\nWITHOUT EXIFTOOL\n" + lost_h;
+  }
+  if (args.json) {
+    out << make_document("doctor", {}, extra).dump() << "\n";
+    return ExitCode::ok;
+  }
+  out << human;
+  return ExitCode::ok;
+}
+
+std::string shell_quote(const std::string& s) {
+#ifdef _WIN32
+  std::string o = "\"";
+  for (char c : s) {
+    if (c == '"') o += '"';
+    o += c;
+  }
+  return o + '"';
+#else
+  std::string o = "'";
+  for (char c : s) {
+    if (c == '\'') o += "'\\''";
+    else
+      o += c;
+  }
+  return o + "'";
+#endif
+}
+
+int run_process(const fs::path& program, const std::vector<std::string>& args, std::string* captured) {
+  std::string cmd = shell_quote(program.string());
+  for (const auto& a : args) cmd += " " + shell_quote(a);
+#ifdef _WIN32
+  // _popen runs `cmd.exe /c <command>`. With more than two quotes, cmd strips
+  // the first and last quote (ERROR_INVALID_NAME). Wrap the whole line.
+  cmd.insert(cmd.begin(), '"');
+  cmd.push_back('"');
+  FILE* f = _popen(cmd.c_str(), "r");
+#else
+  FILE* f = popen(cmd.c_str(), "r");
+#endif
+  if (!f) return 127;
+  char buf[4096];
+  while (std::fgets(buf, sizeof buf, f)) *captured += buf;
+#ifdef _WIN32
+  return _pclose(f);
+#else
+  int st = pclose(f);
+  if (WIFEXITED(st)) return WEXITSTATUS(st);
+  return 1;
+#endif
+}
+
+std::optional<fs::path> executable_dir() {
+#ifdef _WIN32
+  wchar_t buf[32768];
+  DWORD n = GetModuleFileNameW(nullptr, buf, 32768);
+  if (!n || n >= 32768) return std::nullopt;
+  return fs::path(buf).parent_path();
+#elif defined(__APPLE__)
+  char buf[4096];
+  uint32_t size = sizeof buf;
+  if (_NSGetExecutablePath(buf, &size) != 0) return std::nullopt;
+  std::error_code ec;
+  fs::path p = fs::weakly_canonical(buf, ec);
+  if (ec) p = buf;
+  return p.parent_path();
+#else
+  std::error_code ec;
+  fs::path p = fs::read_symlink("/proc/self/exe", ec);
+  if (ec) return std::nullopt;
+  return p.parent_path();
+#endif
+}
+
+fs::path find_setup_script() {
+#ifdef _WIN32
+  const char* name = "exiftool.bat";
+#else
+  const char* name = "exiftool.sh";
+#endif
+  std::vector<fs::path> dirs;
+  if (auto e = process_env()("UMM_SETUP_SCRIPT_DIR")) dirs.emplace_back(*e);
+#ifdef UMM_CLI_SOURCE_DIR
+  dirs.emplace_back(fs::path(UMM_CLI_SOURCE_DIR) / "install");
+#endif
+  if (auto exe = executable_dir()) {
+    dirs.push_back(*exe / "install");
+    dirs.push_back(exe->parent_path() / "install");
+    dirs.push_back(exe->parent_path().parent_path() / "install");
+  }
+  for (const fs::path& d : dirs) {
+    fs::path p = d / name;
+    std::error_code ec;
+    if (fs::is_regular_file(p, ec)) return fs::weakly_canonical(p, ec);
+  }
+  return {};
+}
+
+ExitCode run_setup(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+  if (args.operands.empty() || args.operands[0] != "exiftool") {
+    err << "umm setup: unknown target (expected 'exiftool')\n";
+    return ExitCode::usage;
+  }
+  fs::path script = find_setup_script();
+  if (script.empty()) {
+    err << "umm setup: install script not found\n";
+    return ExitCode::io;
+  }
+  fs::path cfg = primary_config_path(current_platform(), process_env());
+  if (cfg.empty()) {
+    err << "umm setup: cannot resolve config path\n";
+    return ExitCode::usage;
+  }
+  std::vector<std::string> script_args{"--config", cfg.string()};
+  for (std::size_t i = 1; i < args.operands.size(); ++i) script_args.push_back(args.operands[i]);
+  std::string captured;
+  int rc = run_process(script, script_args, &captured);
+  if (rc != 0) {
+    err << captured;
+    err << "umm setup: install script failed\n";
+    return ExitCode::io;
+  }
+  out << captured;
+  return ExitCode::ok;
+}
+
 }  // namespace
 
 ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
   const CommandSpec& cmd = *args.command;
+  if (args.backend == "exiftool" && cmd.name != "doctor" && cmd.name != "setup" &&
+      cmd.name != "version") {
+    if (!exiftool_backend_available()) {
+      ConfigParse cfg = load_config(current_platform(), process_env());
+      err << exiftool_remediation(discover_exiftool(cfg.config, process_env()));
+      return ExitCode::backend;
+    }
+  }
   if (cmd.name == "version") return run_version(args, out);
   if (cmd.name == "read") return run_read(args, out, err);
   if (cmd.name == "get") return run_get(args, out, err);
@@ -900,26 +1235,9 @@ ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& er
   if (cmd.name == "merge") return run_merge(args, out, err);
   if (cmd.name == "sync") return run_sync(args, out, err);
   if (cmd.name == "caps") return run_caps(args, out, err);
-
-  if (cmd.batch_files) {
-    std::vector<std::string> file_operands = args.operands;
-    if (cmd.operands == Operands::file_then_args) file_operands.resize(1);
-    BatchSummary summary = run_batch(expand_operands(file_operands, args.recursive), check_file);
-    if (!summary.failures.empty()) {
-      if (args.json) {
-        std::vector<FileReport> reports;
-        for (const FileFailure& f : summary.failures)
-          reports.push_back({f.path.string(), false, f.message, {}});
-        out << make_document(std::string(cmd.name), reports).dump() << "\n";
-      } else {
-        for (const FileFailure& f : summary.failures)
-          err << "umm " << cmd.name << ": " << f.message << " [" << group_name(f.code) << "]\n";
-        err << "umm " << cmd.name << ": " << summary.failures.size() << " of " << summary.total
-            << " file(s) failed\n";
-      }
-      return summary.exit_code();
-    }
-  }
+  if (cmd.name == "geotag") return run_geotag(args, out, err);
+  if (cmd.name == "doctor") return run_doctor(args, out, err);
+  if (cmd.name == "setup") return run_setup(args, out, err);
 
   err << "umm " << cmd.name << ": not implemented yet\n";
   return ExitCode::not_implemented;

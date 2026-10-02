@@ -1,6 +1,6 @@
 # Session 10 — Geotag
 
-Status: **not started**
+Status: **complete** (`geotag` in `src/commands.cpp`; `--offset` is naive UTC offset **minutes**)
 
 ## Goal
 
