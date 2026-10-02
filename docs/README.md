@@ -35,6 +35,7 @@ Working on umm itself:
 - [Contributing](developer/contributing.md) — architecture, adding a command, pins, tests
 - [Concept](concept.md) — founding design (authoritative feature set)
 - [Implementation sessions](implementation/00-overview.md) — how the CLI was built
+- [Upstream libumm bugs](bug-upstream/README.md) — defects that belong in libumm, not this CLI
 - [Copilot instructions](../.github/copilot-instructions.md) — coding conventions
 
 Do not delete session documents under `docs/implementation/` until a human
