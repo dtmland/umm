@@ -1,6 +1,8 @@
 # Session 13 — Integration tests
 
-Status: **not started**
+Status: **complete**
+
+Landed: fixture strategy and golden regeneration notes in `tests/README.md`; LF goldens in `tests/goldens/`; integration coverage in `tests/cli/test_cli.cpp` (batch, `--recursive`, cross-backend smoke, dry-run mtime/hash, `.xmp`/`.XMP` pairing, table-driven accessors).
 
 ## Goal
 

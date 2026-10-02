@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "command": "unmapped",
+  "files": [
+    {
+      "path": "FILE",
+      "ok": true,
+      "unmapped": [
+        {
+          "family": "Exif",
+          "key": "Exif.Image.YCbCrPositioning",
+          "value": "1"
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Image.ExifTag",
+          "value": "38"
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Photo.ExifVersion",
+          "value": "48 50 51 50"
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Photo.ComponentsConfiguration",
+          "value": "1 2 3 0"
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Photo.ColorSpace",
+          "value": "65535"
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Photo.0xfedc",
+          "value": "vendor-exif"
+        },
+        {
+          "family": "Xmp",
+          "key": "Xmp.libummtest.UnknownWidget",
+          "value": "vendor-widget"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+PROPERTY                RESOLUTION  PREFERRED
+iptc.photo.dateCreated  reconciled   Xmp.photoshop.DateCreated
+  xmp  Xmp.photoshop.DateCreated  2020-03-03T00:00:00
+  exif  Exif.Photo.DateTimeOriginal  2020-01-01T00:00:00
+  iim  Iptc.Application2.DateCreated  2020-02-02T00:00:00Z
+iptc.photo.creator      reconciled   Xmp.dc.creator
+  xmp  Xmp.dc.creator  XMP Creator
+  iim  Iptc.Application2.Byline  IPTC Creator
+  exif  Exif.Image.Artist  EXIF Creator
