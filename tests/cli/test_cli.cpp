@@ -821,11 +821,17 @@ static std::string to_lf(std::string s) {
   return out;
 }
 
+static void substitute_path_token(std::string& s, const std::string& token) {
+  if (token.empty()) return;
+  replace_all(s, json_escape(token), "FILE");
+  replace_all(s, token, "FILE");
+}
+
 static std::string normalize_output(std::string s, const fs::path& path = {}) {
   s = to_lf(std::move(s));
   if (!path.empty()) {
-    replace_all(s, path.string(), "FILE");
-    if (path.generic_string() != path.string()) replace_all(s, path.generic_string(), "FILE");
+    substitute_path_token(s, path.string());
+    if (path.generic_string() != path.string()) substitute_path_token(s, path.generic_string());
   }
   replace_all(s, std::string("umm ") + UMM_CLI_VERSION, "umm VERSION");
   replace_all(s, std::string("\"version\": \"") + UMM_CLI_VERSION + "\"", "\"version\": \"VERSION\"");
@@ -924,6 +930,20 @@ static const char* needle_for(const ResolvedProperty& p) {
   }
 }
 
+static void test_golden_path_normalization() {
+  const std::string win = std::string("C:") + "\\Users\\tmp\\photo.jpg";
+  const std::string mixed = std::string("D:/a/umm/fixtures") + "\\jpeg\\photo.jpg";
+  std::string json = std::string("{\"path\": \"") + json_escape(win) + "\"}";
+  substitute_path_token(json, win);
+  CHECK(json == "{\"path\": \"FILE\"}");
+  std::string human = win + "\n";
+  substitute_path_token(human, win);
+  CHECK(human == "FILE\n");
+  std::string mixed_json = std::string("{\"path\": \"") + json_escape(mixed) + "\"}";
+  substitute_path_token(mixed_json, mixed);
+  CHECK(mixed_json == "{\"path\": \"FILE\"}");
+}
+
 static void test_goldens() {
   std::string out, err;
   CHECK(run_cli({"version"}, &out) == 0);
@@ -965,7 +985,11 @@ static void test_goldens() {
   check_golden("read.txt", normalize_output(out, jpg));
   CHECK(run_cli(with_backend({"read", "--json", jpg.string()}), &out) == 0);
   CHECK(out.find("\"schema_version\": 1") != std::string::npos);
-  check_golden("read.json", normalize_output(out, jpg));
+  {
+    const std::string n = normalize_output(out, jpg);
+    CHECK(n.find("\"path\": \"FILE\"") != std::string::npos);
+    check_golden("read.json", n);
+  }
   CHECK(run_cli(with_backend({"get", jpg.string(), "creator"}), &out) == 0);
   check_golden("get.txt", normalize_output(out, jpg));
   CHECK(run_cli(with_backend({"get", "--json", jpg.string(), "creator"}), &out) == 0);
@@ -1232,6 +1256,7 @@ int main() {
   test_merge_sync();
   test_geotag_doctor_setup();
   test_docs_gen();
+  test_golden_path_normalization();
   test_goldens();
   test_batch_recursive_cli();
   test_cross_backend_and_dry_run();

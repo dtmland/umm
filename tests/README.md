@@ -28,7 +28,8 @@ generated still (plus `unmapped`/`conflicts` when libumm fixtures exist) live
 in `tests/goldens/`. Comparisons:
 
 - Normalize CRLF to LF.
-- Substitute the fixture path with `FILE`.
+- Substitute the fixture path with `FILE` (native, generic, and JSON-escaped
+  forms, so Windows `\\` in JSON still collapses).
 - Substitute CLI and libumm version strings with `VERSION`.
 - Force `--backend exiv2` for read/get/unmapped/conflicts goldens so extra
   write-sync tags stay pinned. Caps goldens require both backends.
