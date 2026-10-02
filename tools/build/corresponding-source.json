@@ -1,7 +1,7 @@
 {
   "schema": "umm.corresponding-source/v1",
   "note": "Pinned source archives to attach as GPLv3 corresponding source for umm binaries that include the Exiv2 backend. Values are copied from the pinned libumm (tools/build/libumm.env) corresponding-source.json; do not invent a second pin set.",
-  "libumm_version": "0.1.0",
+  "libumm_version": "0.1.1",
   "components": [
     {
       "id": "exiv2",
@@ -11,7 +11,7 @@
       "url": "https://github.com/Exiv2/exiv2/archive/refs/tags/v0.28.9.tar.gz",
       "sha256": "700b76b97695b2fab4ef8c79619c68ae57d09e0c130724791cafbd39e0eb4aef",
       "statically_absorbed": true,
-      "pin_source": "libumm 0.1.0 tools/build/corresponding-source.json",
+      "pin_source": "libumm 0.1.1 tools/build/corresponding-source.json",
       "license_files": [
         "licenses/GPL-2.0.txt",
         "licenses/GPL-3.0.txt"
@@ -25,7 +25,7 @@
       "url": "https://github.com/libexpat/libexpat/releases/download/R_2_6_4/expat-2.6.4.tar.gz",
       "sha256": "fd03b7172b3bd7427a3e7a812063f74754f24542429b634e0db6511b53fb2278",
       "statically_absorbed": true,
-      "pin_source": "libumm 0.1.0 tools/build/corresponding-source.json",
+      "pin_source": "libumm 0.1.1 tools/build/corresponding-source.json",
       "license_files": [
         "licenses/Expat.txt"
       ]
@@ -38,7 +38,7 @@
       "url": "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz",
       "sha256": "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23",
       "statically_absorbed": true,
-      "pin_source": "libumm 0.1.0 tools/build/corresponding-source.json",
+      "pin_source": "libumm 0.1.1 tools/build/corresponding-source.json",
       "license_files": [
         "licenses/Zlib.txt"
       ]

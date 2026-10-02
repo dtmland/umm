@@ -395,6 +395,16 @@ static void test_read_get() {
     if (fs::exists(src)) {
       fs::path mp4 = dir / "video.mp4";
       fs::copy_file(src, mp4, fs::copy_options::overwrite_existing);
+      if (backend_available("exiftool")) {
+        // libumm 0.1.1: default read uses preferred_backend (ExifTool for MP4).
+        CHECK(run_cli({"read", mp4.string()}, &out, &err) == 0);
+        CHECK(err.find("Exiv2 read failed") == std::string::npos);
+        CHECK(run_cli({"unmapped", mp4.string()}, &out, &err) == 0);
+        CHECK(err.find("Exiv2 read failed") == std::string::npos);
+        if (backend_available("exiv2")) {
+          CHECK(run_cli({"read", "--backend", "exiv2", mp4.string()}, &out, &err) != 0);
+        }
+      }
       int rc = run_cli({"get", mp4.string(), "creator"});
       CHECK(rc == 0 || rc == to_int(ExitCode::not_found));
       umm::Metadata vmeta;
@@ -552,7 +562,7 @@ static void test_set_rm() {
   CHECK(out.find("SidecarHead") != std::string::npos);
 
   CHECK(run_cli({"rm", jpg.string(), "creator"}) == 0);
-  // libumm v0.1.0 write-sync emits upserts only, so a cleared Metadata may
+  // libumm write-sync emits upserts only, so a cleared Metadata may
   // not delete on-disk tags. Accept either a persisted clear or in-memory
   // remove (checked above).
   int after_rm = run_cli({"get", jpg.string(), "creator"}, &out);
