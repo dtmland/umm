@@ -33,6 +33,8 @@ unmapped *write* is absent.
   how v1 was built. Keep the files until a human consolidates them.
 - `docs/analysis/` — dated decisions that cannot be resolved from the concept
   (create a record there rather than silently overriding the concept)
+- [`docs/bug-upstream/`](../bug-upstream/) — libumm defects; do not implement
+  backend selection or ExifTool process logic in this CLI to work around them
 - [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
   — coding conventions (link, do not fork)
 
