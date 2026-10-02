@@ -1,6 +1,10 @@
 # Session 15 — User, sysadmin, and developer docs
 
-Status: **not started**
+Status: **complete**
+
+Audience trees: `docs/user/`, `docs/sysadmin/`, `docs/developer/`. Root
+`README.md` and `docs/README.md` are the user-facing index. Exit codes and
+JSON schema moved from the session stubs to `docs/user/`.
 
 ## Goal
 

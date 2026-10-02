@@ -1,41 +1,42 @@
 # umm documentation
 
-`umm` is the command-line media metadata tool built on [libumm](https://github.com/dtmland/libumm).
-Implementation is in progress. Until session 15 lands audience guides, use
-the documents below.
+`umm` is the command-line media metadata tool built on
+[libumm](https://github.com/dtmland/libumm). Guides are split by audience.
+`umm COMMAND --help` and `umm(1)` are generated from the command table; these
+pages explain workflows, config, and licensing without repeating libumm's
+property encyclopedia.
 
-## Founding design
+## User
 
-- [Concept](concept.md) — feature set, libumm consumption, backends, skeleton,
-  non-goals, and resolved planning questions. Authoritative.
+People running `umm`:
 
-## Implementation sessions
+- [Getting started](user/getting-started.md) — install, `doctor`, first `read` / `get` / `set`
+- [Command reference](user/commands.md) — every command and its flags
+- [Examples](user/examples.md) — real command lines
+- [Config](user/config.md) — TOML paths, `exiftool`, `UMM_EXIFTOOL`
+- [Exit codes](user/exit-codes.md) — scripting contract
+- [JSON schema](user/json-schema.md) — `--json` and `schema_version`
 
-Point each Copilot session at [implementation/00-overview.md](implementation/00-overview.md)
-plus **one** session file:
+Canonical property semantics live in
+[libumm user docs](https://github.com/dtmland/libumm/blob/main/docs/user/guide.md)
+(see **Cross-media accessors** for the full accessor table).
 
-| # | Session |
-|---|---|
-| 01 | [Project skeleton](implementation/01-project-skeleton.md) |
-| 02 | [libumm consumption](implementation/02-libumm-consumption.md) |
-| 03 | [CI foundation](implementation/03-ci-foundation.md) |
-| 04 | [CLI framework](implementation/04-cli-framework.md) |
-| 05 | [Config and output](implementation/05-config-and-output.md) |
-| 06 | [Read commands](implementation/06-read-commands.md) |
-| 07 | [Inspect commands](implementation/07-inspect-commands.md) |
-| 08 | [Write commands](implementation/08-write-commands.md) |
-| 09 | [Reconcile commands](implementation/09-reconcile-commands.md) |
-| 10 | [Geotag](implementation/10-geotag.md) |
-| 11 | [Doctor and setup](implementation/11-doctor-and-setup.md) |
-| 12 | [Completions and man pages](implementation/12-completions-and-man.md) |
-| 13 | [Integration tests](implementation/13-integration-tests.md) |
-| 14 | [Release engineering](implementation/14-release-engineering.md) |
-| 15 | [User, sysadmin, and developer docs](implementation/15-documentation.md) |
+## Sysadmin
 
-Agent rules: [`.github/copilot-instructions.md`](../.github/copilot-instructions.md).
+Building, installing, deploying, and redistributing binaries:
 
-## Audience guides (after session 15)
+- [Install](sysadmin/install.md) — CMake, ExifTool, licensing, release artifacts, completions
+- [Release checklist](release-checklist.md) — tagging and draft GitHub releases
 
-Planned trees: `docs/user/`, `docs/sysadmin/`, `docs/developer/`. Session 15
-replaces this planning index with the user-facing one and keeps a pointer to
-the concept and implementation history.
+## Developer
+
+Working on umm itself:
+
+- [Contributing](developer/contributing.md) — architecture, adding a command, pins, tests
+- [Concept](concept.md) — founding design (authoritative feature set)
+- [Implementation sessions](implementation/00-overview.md) — how the CLI was built
+- [Copilot instructions](../.github/copilot-instructions.md) — coding conventions
+
+Do not delete session documents under `docs/implementation/` until a human
+consolidates them. After the initial plan, new work follows `docs/concept.md`
+and later dated records under `docs/analysis/` (when any exist).

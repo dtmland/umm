@@ -1,4 +1,4 @@
-// Exit-code contract (docs/implementation/exit-codes.md). The CLI maps
+// Exit-code contract (docs/user/exit-codes.md). The CLI maps
 // umm::ErrorCode *groups* to process exit codes at the libumm boundary.
 #pragma once
 
