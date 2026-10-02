@@ -396,14 +396,17 @@ static void test_read_get() {
       fs::path mp4 = dir / "video.mp4";
       fs::copy_file(src, mp4, fs::copy_options::overwrite_existing);
       if (backend_available("exiftool")) {
-        // libumm 0.1.1: default read uses preferred_backend (ExifTool for MP4).
-        CHECK(run_cli({"read", mp4.string()}, &out, &err) == 0);
+        // libumm 0.1.1: default read/unmapped use preferred_backend (ExifTool for MP4).
+        CHECK(run_cli({"read", "--json", mp4.string()}, &out, &err) == 0);
         CHECK(err.find("Exiv2 read failed") == std::string::npos);
+        CHECK(out.find("iptc.video.dateCreated") != std::string::npos);
         CHECK(run_cli({"unmapped", mp4.string()}, &out, &err) == 0);
         CHECK(err.find("Exiv2 read failed") == std::string::npos);
-        if (backend_available("exiv2")) {
-          CHECK(run_cli({"read", "--backend", "exiv2", mp4.string()}, &out, &err) != 0);
-        }
+        std::string def_unmapped = out;
+        CHECK(def_unmapped.find("QuickTime") != std::string::npos ||
+              def_unmapped.find("ExifTool") != std::string::npos);
+        CHECK(run_cli({"unmapped", "--backend", "exiftool", mp4.string()}, &out, &err) == 0);
+        CHECK(out == def_unmapped);
       }
       int rc = run_cli({"get", mp4.string(), "creator"});
       CHECK(rc == 0 || rc == to_int(ExitCode::not_found));
