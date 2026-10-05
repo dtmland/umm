@@ -8,7 +8,9 @@
   from the pinned libumm; attached to each umm release (GPLv3 §6).
 - `fetch_corresponding_source.py` — downloads and checksum-verifies those
   archives (never ExifTool).
-- `package_release.py` — builds per-OS `umm-<version>-<os>.tar.gz` archives
-  and `SHA256SUMS`.
+- `package_release.py` — builds per-OS binary archives and `SHA256SUMS`.
+  Windows is `umm-<version>-windows-2025.zip`; Linux and macOS stay
+  `umm-<version>-<os>.tar.gz`. Corresponding-source and `umm-<version>-src.tar.gz`
+  stay tarballs.
 - `generate_release_notes.py` — draft GitHub release notes from CMake version
   and pins.

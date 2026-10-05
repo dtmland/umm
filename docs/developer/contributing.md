@@ -36,8 +36,8 @@ Location structs (`locationCreated` / `locationShot`), not a `gps` accessor.
 - `docs/analysis/` — dated decisions that cannot be resolved from the concept
   (create a record there rather than silently overriding the concept)
 - [`docs/bug-upstream/`](../bug-upstream/) — historical libumm 0.1.0 defects
-  (fixed in the pinned 0.1.1); do not implement backend selection or ExifTool
-  process logic in this CLI to work around them
+  (fixed in libumm 0.1.1; current pin is 0.1.2); do not implement backend
+  selection or ExifTool process logic in this CLI to work around them
 - [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md)
   — coding conventions (link, do not fork)
 
@@ -94,7 +94,7 @@ versions with `VERSION`. Regenerate after an intentional output change:
 UMM_REGENERATE_GOLDENS=1 ctest --preset default -R umm_cli_unit
 ```
 
-JSON goldens still assert `"schema_version": 1`.
+JSON goldens still assert `"schema_version": 2`.
 
 ## Build and CI bar
 

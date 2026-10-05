@@ -53,14 +53,27 @@ object with a `files` array (one entry per file, in operand order).
   `umm::write`; JSON carries `gps` / `match` instead of `report`.
 - `umm merge --json` may include `report` after a write, or `merged: true` on
   `--dry-run`.
+- `umm read --report-casts` and `umm cast` add `cast_candidates` per file:
+  `[{group, direction, status, source_id, target_id, source_preview,
+  target_preview, notes}]`. Fields libumm leaves empty are omitted.
+  `--report-casts` keeps canonical `properties` separate from candidates.
+  `umm cast` preview and `--apply` both emit this document (`command` is
+  `cast`); preview does not write.
+- `umm map --json` is a single document (not a `files` array) with
+  `schema_version`, `command`, and libumm map fields (`query`, `properties`,
+  `layers`, `cross_media`, …). `--layers` may omit display keys; it does not
+  invent a second schema.
 
 Geotag `--dry-run` GPS objects use `latitude`, `longitude`, and optional
-`altitude_meters` / `gps_time` (`TrackMatch::position`). Location GPS on
-`locationCreated` / `locationShot` uses IPTC field names (`gpsLatitude`,
+`altitude_meters` / `gps_time` (`TrackMatch::position`). That dry-run `gps`
+object is the track match, not a `gps` accessor. A persisted geotag write
+stores Location GPS on `locationCreated` / `locationShot` (`gpsLatitude`,
 `gpsLongitude`, …). Date-times are ISO-8601 strings.
 
 ## Versioning
 
 A breaking change (removing or renaming a field, or changing its type) bumps
 `schema_version` and requires a CLI semver **major**. Additive fields are
-allowed within a major.
+allowed within a major. Pre-1.0, the same rule used a 0.y bump:
+`schema_version` 1 became 2 with CLI 0.2.0 (`raw_key` → `base_key`, dump
+commands).

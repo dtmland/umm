@@ -4,7 +4,9 @@
 The prefix is produced by `cmake --install` (CLI binary, completions, umm(1),
 LICENSE/NOTICE/THIRD-PARTY-NOTICES, licenses/). This script copies that tree,
 adds README.md and native ExifTool setup scripts (not ExifTool itself), then
-writes a .tar.gz plus a path manifest.
+writes a per-OS archive plus a path manifest. Windows (`windows-*` runner ids)
+is `.zip`; Linux and macOS stay `.tar.gz`. Corresponding-source and
+`umm-<version>-src.tar.gz` are produced elsewhere and stay tarballs.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ import hashlib
 import shutil
 import sys
 import tarfile
+import zipfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -84,8 +87,23 @@ def write_manifest(staging: Path, archive_root_name: str) -> None:
     (staging / "MANIFEST.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def is_windows_os(os_id: str) -> bool:
+    return os_id.startswith("windows")
+
+
+def archive_filename(version: str, os_id: str) -> str:
+    ext = "zip" if is_windows_os(os_id) else "tar.gz"
+    return f"umm-{version}-{os_id}.{ext}"
+
+
 def make_archive(staging: Path, archive_root_name: str, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.suffix == ".zip":
+        with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for path in iter_files(staging):
+                rel = path.relative_to(staging).as_posix()
+                zf.write(path, f"{archive_root_name}/{rel}")
+        return
     with tarfile.open(dest, "w:gz") as tar:
         tar.add(staging, arcname=archive_root_name)
 
@@ -99,7 +117,7 @@ def package(
 ) -> Path:
     require_prefix(prefix)
     archive_root_name = f"umm-{version}"
-    archive_name = f"umm-{version}-{os_id}.tar.gz"
+    archive_name = archive_filename(version, os_id)
     output_dir.mkdir(parents=True, exist_ok=True)
     staging_parent = output_dir / f".staging-{os_id}"
     if staging_parent.exists():

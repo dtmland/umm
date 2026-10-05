@@ -9,8 +9,10 @@ setup only; every metadata decision comes from libumm.
 
 ## Install
 
-Download a release archive (`umm-<version>-<os>.tar.gz`) from GitHub Releases
-and put `umm` on your `PATH`. Then check the environment:
+Download a release archive from GitHub Releases
+(`umm-<version>-ubuntu-24.04.tar.gz`, `umm-<version>-windows-2025.zip`, or
+`umm-<version>-macos-15.tar.gz`) and put `umm` on your `PATH`. Then check the
+environment:
 
 ```sh
 umm doctor
@@ -32,16 +34,21 @@ umm read photo.jpg
 umm get photo.jpg creator
 umm set photo.jpg creator="Jane Doe"
 umm get photo.jpg creator
+umm set photo.jpg locationCreated --json \
+  '[{"gpsLatitude":40.7128,"gpsLongitude":-74.0060}]'
+umm get photo.jpg locationCreated
 ```
 
 Convenience accessors work on both stills and video (`creator`, `keywords`,
-`dateCreated`, `gps`, …). Full canonical ids never retarget the other domain:
+`dateCreated`, `locationCreated`, …). Full canonical ids never retarget the
+other domain. Camera GPS is Location struct fields, not a `gps` accessor.
+`umm dumpall` / `umm dumpunmapped` are read-only base views; `umm cast` and
+`umm map` expose libumm's cast engine and property map.
 
 ```sh
 umm set photo.jpg creator="Jane Doe" keywords="nature,landscape" \
   dateCreated="2025-01-15T14:30:00Z"
 umm get video.mp4 iptc.video.creator
-umm set photo.jpg gps="40.7128,-74.0060"
 ```
 
 Machine-readable output is `--json` (every document has `"schema_version"`).

@@ -783,6 +783,7 @@ static void test_docs_gen() {
     CHECK(fish.find(std::string("-l ") + (f + 2)) != std::string::npos);
   }
   for (auto n : accessor_names()) {
+    CHECK(std::string(n) != "gps");
     CHECK(bash.find(std::string(n)) != std::string::npos);
     CHECK(zsh.find(std::string(n)) != std::string::npos);
     CHECK(fish.find(std::string(n)) != std::string::npos);

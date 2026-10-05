@@ -117,7 +117,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}
-          path: release-dist/umm-*.tar.gz
+          path: |
+            release-dist/umm-*.tar.gz
+            release-dist/umm-*.zip
           if-no-files-found: error
 
   corresponding-source:
@@ -225,8 +227,9 @@ jobs:
             --output dist/SHA256SUMS
           test -s dist/SHA256SUMS
           grep -E 'umm-.*ubuntu-24.04\.tar\.gz$' dist/SHA256SUMS
-          grep -E 'umm-.*windows-2025\.tar\.gz$' dist/SHA256SUMS
+          grep -E 'umm-.*windows-2025\.zip$' dist/SHA256SUMS
           grep -E 'umm-.*macos-15\.tar\.gz$' dist/SHA256SUMS
+          ! grep -E 'umm-.*windows-2025\.tar\.gz$' dist/SHA256SUMS
           grep -E 'exiv2-.*\.tar\.gz$' dist/SHA256SUMS
           grep -E 'expat-.*\.tar\.gz$' dist/SHA256SUMS
           grep -E 'zlib-.*\.tar\.gz$' dist/SHA256SUMS

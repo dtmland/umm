@@ -1,6 +1,11 @@
 # Session 19 — Contract docs and completions
 
-Status: **not started**
+Status: **complete**
+
+Landed: user/sysadmin/developer docs and README match the 0.1.2 command
+table (`dumpall` / `dumpunmapped` / `cast` / `map`, Location GPS, `base_key`).
+Windows binary archive is `umm-<version>-windows-2025.zip`; Unix binaries
+stay `.tar.gz`.
 
 ## Goal
 
