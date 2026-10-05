@@ -30,6 +30,7 @@ std::string_view value_choices(std::string_view flag) {
   if (flag == "policy") return "embedded sidecar sidecar-required preferred";
   if (flag == "direction") return "both embedded-to-sidecar sidecar-to-embedded";
   if (flag == "container") return "embedded sidecar";
+  if (flag == "layers") return "representations casts cross-media";
   return "";
 }
 
@@ -53,7 +54,7 @@ std::string accessors_joined() {
 }
 
 bool property_command(std::string_view name) {
-  return name == "get" || name == "set" || name == "rm";
+  return name == "get" || name == "set" || name == "rm" || name == "map";
 }
 
 std::string groff_escape(std::string_view s) {

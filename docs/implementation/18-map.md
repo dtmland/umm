@@ -1,6 +1,6 @@
 # Session 18 — Map (`umm::describe`)
 
-Status: **not started**
+Status: **in progress**
 
 ## Goal
 

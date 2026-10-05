@@ -51,6 +51,9 @@ std::vector<CommandSpec> build() {
        true},
       {"caps", "umm caps [options] FILE|TYPE...", "show per-backend capabilities", Operands::args, 1, {},
        false},
+      {"map", "umm map [options] PROPERTY [FILE]",
+       "print the property map (definition, representations, casts, cross-media)", Operands::args, 1,
+       {{"layers", 0, true, "LAYERS", "representations,casts,cross-media (display filter)"}}, false},
       {"geotag", "umm geotag --track TRACK [options] FILE...", "write GPS from a track log",
        Operands::files, 1,
        {{"track", 0, true, "TRACK", "GPX/NMEA/KML track file"},
@@ -137,6 +140,13 @@ std::string command_help(const CommandSpec& cmd) {
     os << "\nDirection is a positional operand (up, down, or side), not --direction.\n"
           "Default is preview (CastOptions::dry_run). --apply sets dry_run false; "
           "libumm persists through umm::write. --group may be repeated.\n";
+  }
+  if (cmd.name == "map") {
+    os << "\nPROPERTY is a registry id (iptc.photo.creator) or a cross-media accessor "
+          "name (locationCreated, creator, …). Operand order is PROPERTY then optional "
+          "FILE; umm map FILE PROPERTY is not accepted. Optional FILE fills values and "
+          "cast-group statuses via umm::describe and does not write. --layers filters "
+          "display only (representations, casts, cross-media); default is all layers.\n";
   }
   if (cmd.name == "geotag") {
     os << "\n--track is required. Formats are those umm::importTrack accepts "

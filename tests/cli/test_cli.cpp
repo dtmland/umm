@@ -53,10 +53,12 @@ static void test_version_linked() { CHECK(!umm::version().empty()); }
 
 static void test_command_table() {
   for (const char* n : {"read", "get", "set", "rm", "dumpall", "dumpunmapped", "conflicts", "merge",
-                        "sync", "cast", "caps", "geotag", "doctor", "setup", "version"})
+                        "sync", "cast", "caps", "map", "geotag", "doctor", "setup", "version"})
     CHECK(find_command(n) != nullptr);
-  CHECK(commands().size() == 15);
+  CHECK(commands().size() == 16);
   CHECK(find_command("cast") != nullptr);
+  CHECK(find_command("map") != nullptr);
+  CHECK(find_flag(*find_command("map"), "layers", true) != nullptr);
   CHECK(find_flag(*find_command("read"), "report-casts", true) != nullptr);
   CHECK(find_command("unmapped") == nullptr);
   CHECK(find_command("write") == nullptr);  // no `umm write` (concept §2.1)
@@ -97,6 +99,11 @@ static void test_parse() {
   CHECK(cast_args.options.count("force") && cast_args.options.count("apply"));
   CHECK(cast_args.options.count("include-approximate"));
   CHECK(cast_args.operands.size() == 2 && cast_args.operands.back() == "up");
+  ParsedArgs map_args = parse_args({"map", "--layers", "representations,casts", "locationCreated"});
+  CHECK(map_args.error.empty() && map_args.command && map_args.command->name == "map");
+  CHECK(map_args.options.at("layers") == "representations,casts");
+  CHECK(map_args.operands.size() == 1 && map_args.operands[0] == "locationCreated");
+  CHECK(parse_args({"map", "creator", "photo.jpg"}).operands.size() == 2);
   CHECK(parse_args({"read", "--help"}).help);
   CHECK(parse_args({"--help"}).help);
 }
@@ -106,6 +113,7 @@ static void test_cli_behaviour() {
   CHECK(run_cli({"--help"}, &out) == 0 && out.find("Commands:") != std::string::npos);
   CHECK(run_cli({"set", "--help"}, &out) == 0 && out.find("--policy") != std::string::npos);
   CHECK(run_cli({"cast", "--help"}, &out) == 0 && out.find("up|down|side") != std::string::npos);
+  CHECK(run_cli({"map", "--help"}, &out) == 0 && out.find("PROPERTY [FILE]") != std::string::npos);
   CHECK(run_cli({"cast", "x.jpg", "sideways"}, nullptr, &err) == to_int(ExitCode::usage));
   CHECK(err.find("direction") != std::string::npos);
   CHECK(run_cli({"merge", "--help"}, &out) == 0 && out.find("BASEKEY") != std::string::npos);
@@ -761,7 +769,7 @@ static void test_docs_gen() {
   const char* flags[] = {"--json",     "--backend", "--recursive", "--policy",
                          "--dry-run",  "--sources", "--fail-on-conflict", "--direction",
                          "--track",    "--offset",  "--use", "--value", "--report-casts",
-                         "--group",    "--force", "--include-approximate", "--apply"};
+                         "--group",    "--force", "--include-approximate", "--apply", "--layers"};
   for (const CommandSpec& c : commands()) {
     CHECK(help.find(std::string(c.name)) != std::string::npos);
     CHECK(man.find(std::string(c.name)) != std::string::npos);
@@ -1433,6 +1441,76 @@ static void test_cast() {
   fs::remove_all(dir);
 }
 
+static void test_map() {
+  std::string out, err;
+  CHECK(run_cli({"map"}, nullptr, &err) == to_int(ExitCode::usage));
+  CHECK(run_cli({"map", "no-such-property"}, nullptr, &err) == to_int(ExitCode::semantics));
+  CHECK(err.find("unknown property") != std::string::npos);
+  CHECK(run_cli({"map", "--layers", "nope", "creator"}, nullptr, &err) == to_int(ExitCode::usage));
+  CHECK(err.find("layer") != std::string::npos);
+  CHECK(run_cli({"map", "creator", "a.jpg", "b.jpg"}, nullptr, &err) == to_int(ExitCode::usage));
+  CHECK(run_cli({"map", "photo.jpg", "creator"}, nullptr, &err) == to_int(ExitCode::semantics));
+
+  CHECK(run_cli({"map", "--json", "locationCreated"}, &out, &err) == 0);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
+  CHECK(out.find("\"command\": \"map\"") != std::string::npos);
+  CHECK(out.find("\"query\": \"locationCreated\"") != std::string::npos);
+  CHECK(out.find("iptc.photo.locationCreated") != std::string::npos);
+  CHECK(out.find("iptc.video.locationShot") != std::string::npos);
+  CHECK(out.find("\"layers\"") != std::string::npos);
+  CHECK(out.find("\"cross_media\"") != std::string::npos);
+  check_golden("map-locationCreated.json", normalize_output(out));
+
+  CHECK(run_cli({"map", "iptc.photo.creator"}, &out) == 0);
+  CHECK(out.find("QUERY") != std::string::npos);
+  CHECK(out.find("iptc.photo.creator") != std::string::npos);
+  CHECK(out.find("DEFINITION") != std::string::npos);
+  CHECK(out.find("REPRESENTATIONS") != std::string::npos);
+  CHECK(out.find("CROSS-MEDIA") != std::string::npos);
+  check_golden("map-creator.txt", normalize_output(out));
+
+  CHECK(run_cli({"map", "--json", "iptc.photo.creator"}, &out) == 0);
+  CHECK(out.find("\"cross_media\"") != std::string::npos);
+  CHECK(out.find("locationCreated") == std::string::npos);
+
+  CHECK(run_cli({"map", "--layers", "representations", "locationCreated"}, &out) == 0);
+  CHECK(out.find("REPRESENTATIONS") != std::string::npos);
+  CHECK(out.find("CASTS") == std::string::npos);
+  CHECK(out.find("CROSS-MEDIA") == std::string::npos);
+  CHECK(out.find("iptc.photo.locationCreated") != std::string::npos);
+  CHECK(out.find("iptc.video.locationShot") != std::string::npos);
+  check_golden("map-layers-representations.txt", normalize_output(out));
+
+  CHECK(run_cli({"map", "--json", "--layers", "representations", "locationCreated"}, &out) == 0);
+  CHECK(out.find("\"representations\"") != std::string::npos);
+  CHECK(out.find("\"casts\"") == std::string::npos);
+  CHECK(out.find("\"cross_media\"") == std::string::npos);
+
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_map";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  fs::path jpg = write_jpeg(dir / "photo.jpg");
+  umm::Metadata meta;
+  CHECK(meta.setCreator({"Jane Doe"}).ok());
+  umm::Result<umm::WriteReport> wr = umm::write(jpg, meta);
+  if (!wr.ok()) {
+    std::cerr << "skip map file mode: " << wr.error().message << "\n";
+    fs::remove_all(dir);
+    return;
+  }
+  auto before = read_bytes(jpg);
+  CHECK(run_cli({"map", "--json", "iptc.photo.creator", jpg.string()}, &out, &err) == 0);
+  CHECK(read_bytes(jpg) == before);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
+  CHECK(out.find("Jane Doe") != std::string::npos);
+  CHECK(out.find("\"value\"") != std::string::npos);
+  CHECK(run_cli({"map", "iptc.photo.creator", jpg.string()}, &out) == 0);
+  CHECK(out.find("Jane Doe") != std::string::npos);
+  CHECK(read_bytes(jpg) == before);
+  CHECK(run_cli({"map", "creator", "/no/such/map.jpg"}, nullptr, &err) == to_int(ExitCode::io));
+  fs::remove_all(dir);
+}
+
 int main() {
   test_version_linked();
   test_command_table();
@@ -1459,6 +1537,7 @@ int main() {
   test_xmp_pairing();
   test_accessor_coverage();
   test_cast();
+  test_map();
   if (failures) std::cerr << failures << " check(s) failed\n";
   return failures ? 1 : 0;
 }
