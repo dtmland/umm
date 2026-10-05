@@ -25,7 +25,8 @@ is a v1 non-goal).
 
 Stable human and JSON stdout for `version`, `caps JPEG`, and `read`/`get` on a
 generated still (plus `dumpunmapped`/`dumpall`/`conflicts` when libumm fixtures
-exist) live in `tests/goldens/`. Comparisons:
+exist, and `cast` / `read --report-casts` on a `cityLegacy` JPEG) live in
+`tests/goldens/`. Comparisons:
 
 - Normalize CRLF to LF.
 - Substitute the fixture path with `FILE` (native, generic, and JSON-escaped
@@ -33,7 +34,7 @@ exist) live in `tests/goldens/`. Comparisons:
 - Substitute CLI and libumm version strings with `VERSION`.
   `test_version_command` asserts `UMM_CLI_VERSION` from CMake
   `project(umm VERSION)`; do not hardcode `umm x.y.z` in CLI tests.
-- Force `--backend exiv2` for read/get/dump/conflicts goldens so extra
+- Force `--backend exiv2` for read/get/dump/conflicts/cast goldens so extra
   write-sync tags stay pinned. Caps goldens require both backends.
 
 JSON goldens assert `"schema_version": 2`.

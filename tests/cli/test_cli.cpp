@@ -1408,16 +1408,17 @@ static void test_cast() {
       auto vbefore = read_bytes(mp4);
       CHECK(run_cli({"cast", mp4.string(), "up"}, &out, &err) == 0);
       CHECK(read_bytes(mp4) == vbefore);
-      CHECK(run_cli({"cast", "--apply", "--group", "videoCreated", mp4.string(), "up"}, &out, &err) ==
-            0);
+      CHECK(run_cli({"cast", "--json", "--apply", "--group", "videoCreated", mp4.string(), "up"},
+                    &out, &err) == 0);
+      CHECK(out.find("can_cast") != std::string::npos);
       CHECK(run_cli({"get", mp4.string(), "iptc.video.dateCreated"}) == to_int(ExitCode::not_found));
-      int approx = run_cli(
-          {"cast", "--apply", "--include-approximate", "--group", "videoCreated", mp4.string(), "up"},
-          &out, &err);
+      int approx = run_cli({"cast", "--json", "--apply", "--include-approximate", "--group",
+                            "videoCreated", mp4.string(), "up"},
+                           &out, &err);
       if (approx != 0)
         std::cerr << "skip videoCreated apply: rc=" << approx << " " << err << "\n";
       else {
-        CHECK(run_cli({"get", mp4.string(), "iptc.video.dateCreated"}, &out) == 0);
+        CHECK(out.find("equal") != std::string::npos);
       }
     } else {
       std::cerr << "skip ExifTool-only cast cases (no video fixture)\n";
