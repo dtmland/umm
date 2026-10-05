@@ -10,7 +10,7 @@ reconciliation, mapping, and backend behavior do not.
 |---|---|
 | `src/command_table.cpp` | Single source of truth for commands, synopses, flags |
 | `src/args.cpp` | Parse argv; never calls libumm |
-| `src/commands.cpp` | Dispatch; pass `ReadOptions` / `WriteOptions` / `SyncOptions` / `MatchOptions` through |
+| `src/commands.cpp` | Dispatch; pass `ReadOptions` / `WriteOptions` / `SyncOptions` / `MatchOptions` / `CastOptions` through |
 | `src/property.cpp` | Accessor vs full-id seam; binds public libumm `Metadata` getters |
 | `src/output.cpp` | Human table and JSON (`schema_version`) |
 | `src/config.cpp` | TOML `exiftool` key; discovery order |
@@ -23,14 +23,16 @@ libumm (there are none on the public API). The CLI may use exceptions
 internally.
 
 The command-line vocabulary is IPTC Photo, IPTC Video Metadata Hub, EXIF,
-and libumm convenience accessors. Unmapped *display* is `umm unmapped`;
-unmapped *write* is absent.
+and libumm convenience accessors. Base *display* is `umm dumpall` /
+`umm dumpunmapped`; writing new base keys is absent. Camera GPS lives on
+Location structs (`locationCreated` / `locationShot`), not a `gps` accessor.
 
 ## Design records
 
 - [`docs/concept.md`](../concept.md) — authoritative feature set
-- [`docs/implementation/`](../implementation/) — session-sized history of
-  how v1 was built. Keep the files until a human consolidates them.
+- [`docs/implementation/`](../implementation/) — session-sized plan. 01–15
+  built the 0.1.1 CLI (historical). 16–19 align with libumm 0.1.2. Keep the
+  files until a human consolidates them.
 - `docs/analysis/` — dated decisions that cannot be resolved from the concept
   (create a record there rather than silently overriding the concept)
 - [`docs/bug-upstream/`](../bug-upstream/) — historical libumm 0.1.0 defects
