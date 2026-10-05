@@ -19,15 +19,14 @@ struct ResolvedProperty {
   std::string property_id;        // registry id when addressed by full id; empty for accessors
   AccessorGetter getter{nullptr}; // libumm's public Metadata getter when addressed by accessor
   umm::Datatype datatype{umm::Datatype::text};
-  bool photo_only{false};  // `rating`
   bool is_accessor() const { return getter != nullptr; }
 };
 
 // Resolves a CLI name:
 //  - a full property id is checked against libumm's Registry;
 //  - otherwise the name is bound to the matching public libumm Metadata
-//    getter (creator, gps, ...). libumm does the cross-media (photo/video)
-//    resolution, so the CLI holds no id mapping of its own.
+//    getter (creator, locationCreated, ...). libumm does the cross-media
+//    (photo/video) resolution, so the CLI holds no id mapping of its own.
 // Unknown names return unknown_property. `domain` is for the setter path
 // (session 08, Metadata::setMediaDomain); getters probe both domains.
 umm::Result<ResolvedProperty> resolve_property(std::string_view name, umm::MediaDomain domain);

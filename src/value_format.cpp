@@ -198,8 +198,8 @@ PropertyRow property_row(std::string id, const umm::PropertyValue& property, boo
     Json::Array srcs;
     for (std::size_t i = 0; i < property.sources.size(); ++i) {
       if (i) keys += ",";
-      keys += property.sources[i].raw_key;
-      srcs.emplace_back(Json(Json::Object{{"raw_key", Json(property.sources[i].raw_key)},
+      keys += property.sources[i].base_key;
+      srcs.emplace_back(Json(Json::Object{{"base_key", Json(property.sources[i].base_key)},
                                           {"backend", Json(property.sources[i].backend)},
                                           {"container", Json(property.sources[i].container)}}));
     }
@@ -350,26 +350,6 @@ umm::Result<umm::DateTime> parse_datetime(std::string_view text) {
   return dt;
 }
 
-umm::Result<umm::GpsCoordinate> parse_gps(std::string_view text) {
-  std::string s = unquote(text);
-  auto comma = s.find(',');
-  if (comma == std::string::npos) return bad_value("gps value must be 'lat,lon' or 'lat,lon,alt'");
-  auto comma2 = s.find(',', comma + 1);
-  try {
-    umm::GpsCoordinate g;
-    g.latitude = std::stod(s.substr(0, comma));
-    if (comma2 == std::string::npos) {
-      g.longitude = std::stod(s.substr(comma + 1));
-    } else {
-      g.longitude = std::stod(s.substr(comma + 1, comma2 - comma - 1));
-      g.altitude_meters = std::stod(s.substr(comma2 + 1));
-    }
-    return g;
-  } catch (...) {
-    return bad_value("invalid gps coordinate");
-  }
-}
-
 umm::Result<umm::Value> json_to_value(const Json& j, umm::Datatype dt);
 
 umm::Result<umm::Value> json_to_untyped(const Json& j) {
@@ -487,40 +467,6 @@ umm::Result<umm::Value> json_to_value(const Json& j, umm::Datatype dt) {
       if (!dt.ok()) return dt.error();
       return make_value(dt.value());
     }
-    case umm::Datatype::gps_coordinate: {
-      if (const std::string* s = j.as_string()) {
-        umm::Result<umm::GpsCoordinate> g = parse_gps(*s);
-        if (!g.ok()) return g.error();
-        return make_value(g.value());
-      }
-      const Json::Object* o = j.as_object();
-      if (!o) return bad_value("expected GPS object or 'lat,lon' string");
-      umm::GpsCoordinate g;
-      bool have_lat = false, have_lon = false;
-      for (const auto& [k, v] : *o) {
-        if (k == "latitude" || k == "longitude" || k == "altitude_meters") {
-          const double* n = v.as_number();
-          if (!n) return bad_value("GPS fields must be numbers");
-          if (k == "latitude") {
-            g.latitude = *n;
-            have_lat = true;
-          } else if (k == "longitude") {
-            g.longitude = *n;
-            have_lon = true;
-          } else {
-            g.altitude_meters = *n;
-          }
-        } else if (k == "gps_time") {
-          const std::string* s = v.as_string();
-          if (!s) return bad_value("gps_time must be a string");
-          umm::Result<umm::DateTime> dt = parse_datetime(*s);
-          if (!dt.ok()) return dt.error();
-          g.gps_time = dt.value();
-        }
-      }
-      if (!have_lat || !have_lon) return bad_value("GPS needs latitude and longitude");
-      return make_value(g);
-    }
     case umm::Datatype::structure: {
       if (j.as_array() && j.as_array()->size() == 1)
         return json_to_value(j.as_array()->front(), umm::Datatype::structure);
@@ -602,11 +548,6 @@ umm::Result<umm::Value> parse_value(umm::Datatype datatype, std::string_view tex
       umm::Result<umm::DateTime> dt = parse_datetime(text);
       if (!dt.ok()) return dt.error();
       return make_value(dt.value());
-    }
-    case umm::Datatype::gps_coordinate: {
-      umm::Result<umm::GpsCoordinate> g = parse_gps(text);
-      if (!g.ok()) return g.error();
-      return make_value(g.value());
     }
     case umm::Datatype::structure:
     case umm::Datatype::structure_list:

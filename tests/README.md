@@ -11,7 +11,7 @@ is a v1 non-goal).
 - Minimal JPEG bytes live in `test_cli.cpp` (`kMinimalJpeg`, plus a naive-EXIF
   JPEG for geotag `--offset`). Tests write them into a temp directory and stamp
   metadata through libumm (`umm::write` / `umm set`).
-- Video, unmapped, conflicting, and paired-sidecar cases copy
+- Video, dump, conflicting, and paired-sidecar cases copy
   `tests/fixtures` from the pinned libumm source tree when
   `UMM_LIBUMM_FIXTURES` is defined. Those copies are skipped cleanly when the
   tree is absent (for example `UMM_CLI_USE_SYSTEM_LIBUMM`).
@@ -24,8 +24,8 @@ is a v1 non-goal).
 ## Golden outputs
 
 Stable human and JSON stdout for `version`, `caps JPEG`, and `read`/`get` on a
-generated still (plus `unmapped`/`conflicts` when libumm fixtures exist) live
-in `tests/goldens/`. Comparisons:
+generated still (plus `dumpunmapped`/`dumpall`/`conflicts` when libumm fixtures
+exist) live in `tests/goldens/`. Comparisons:
 
 - Normalize CRLF to LF.
 - Substitute the fixture path with `FILE` (native, generic, and JSON-escaped
@@ -33,10 +33,10 @@ in `tests/goldens/`. Comparisons:
 - Substitute CLI and libumm version strings with `VERSION`.
   `test_version_command` asserts `UMM_CLI_VERSION` from CMake
   `project(umm VERSION)`; do not hardcode `umm x.y.z` in CLI tests.
-- Force `--backend exiv2` for read/get/unmapped/conflicts goldens so extra
+- Force `--backend exiv2` for read/get/dump/conflicts goldens so extra
   write-sync tags stay pinned. Caps goldens require both backends.
 
-JSON goldens still assert `"schema_version": 1`.
+JSON goldens assert `"schema_version": 2`.
 
 Regenerate after an intentional output change:
 
@@ -51,12 +51,13 @@ Read/get tests generate a tiny in-memory JPEG and write metadata through
 libumm. Video cases copy libumm's generated `tests/fixtures` when FetchContent
 provides them. Skip a `--backend` case when that backend is unavailable.
 Inspect tests use `caps JPEG` plus libumm's `unknown-tags.jpg` /
-`full-conflicting.jpg` when present. Write tests cover set/get round-trip,
+`full-conflicting.jpg` when present (`dumpall` / `dumpunmapped` /
+`conflicts`). Write tests cover set/get round-trip,
 `--dry-run` (bytes, size, mtime), sidecar policy, batch I/O (one good file +
 one missing file still processes the good file), `--recursive` on a small
 tree, and cross-backend smoke (`set` with one backend, `get` with the other).
 Table-driven get/set walks every libumm accessor on photo and video fixtures,
-plus struct `--json` and `gps` round-trips. Reconcile tests cover
+plus Location GPS `--json`. Reconcile tests cover
 `merge --value` and `sync --dry-run`; paired sidecar `--use` uses libumm's
 `paired.jpg` when present. Geotag tests generate a tiny GPX plus a still whose
 `dateCreated` falls on the track; naive timestamps without `--offset` use the

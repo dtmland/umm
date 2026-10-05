@@ -1,6 +1,6 @@
 # Session 16 — Pin libumm 0.1.2 and source-break migration
 
-Status: **not started**
+Status: **complete**
 
 ## Goal
 

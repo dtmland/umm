@@ -1,0 +1,54 @@
+{
+  "schema_version": 2,
+  "command": "dumpall",
+  "files": [
+    {
+      "path": "FILE",
+      "ok": true,
+      "entries": [
+        {
+          "family": "Exif",
+          "key": "Exif.Image.YCbCrPositioning",
+          "value": "1",
+          "cast_source": false
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Image.ExifTag",
+          "value": "38",
+          "cast_source": false
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Photo.ExifVersion",
+          "value": "48 50 51 50",
+          "cast_source": false
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Photo.ComponentsConfiguration",
+          "value": "1 2 3 0",
+          "cast_source": false
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Photo.ColorSpace",
+          "value": "65535",
+          "cast_source": false
+        },
+        {
+          "family": "Exif",
+          "key": "Exif.Photo.0xfedc",
+          "value": "vendor-exif",
+          "cast_source": false
+        },
+        {
+          "family": "Xmp",
+          "key": "Xmp.libummtest.UnknownWidget",
+          "value": "vendor-widget",
+          "cast_source": false
+        }
+      ]
+    }
+  ]
+}
