@@ -20,22 +20,27 @@ from libumm.
 
 ## Repository conventions
 
-- The founding design is [`docs/concept.md`](../docs/concept.md). It is
-  authoritative for the feature set, libumm consumption model, backend rules,
-  project skeleton, non-goals, and resolved planning questions.
+- The founding design is [`docs/concept.md`](../docs/concept.md) (lifted from
+  libumm v0.1.2). It is authoritative for the feature set, libumm consumption
+  model, backend rules, project skeleton, non-goals, and resolved planning
+  questions.
 - Session-sized work packages live under [`docs/implementation/`](../docs/implementation/).
   [`docs/implementation/00-overview.md`](../docs/implementation/00-overview.md)
-  is the index, standing constraints, and concept-coverage map. When a session
-  is assigned, implement **that session only**.
-- After the initial plan is complete, new work follows `docs/concept.md` and
+  is the index, standing constraints, and concept-coverage map. Sessions 01–15
+  are historical (libumm 0.1.1). Sessions 16–19 are the active libumm 0.1.2
+  alignment. When a session is assigned, implement **that session only**.
+- After a plan series is complete, new work follows `docs/concept.md` and
   any later decision records under `docs/analysis/` — not an informal path.
 - The CLI vocabulary is libumm's standards-based canonical model (IPTC Photo,
   IPTC Video Metadata Hub, EXIF), not backend-specific tag names. Do not invent
-  metadata properties or ad-hoc tag names on the command line. Unmapped
-  *display* is `umm unmapped`; unmapped *write* is absent.
-- Do not add metadata semantics, reconciliation, or backend behavior in this
-  repo. Pass options through to libumm (`ReadOptions` / `WriteOptions` /
-  `SyncOptions` / `MatchOptions`) and present libumm results.
+  metadata properties or ad-hoc tag names on the command line. Base *display*
+  is `umm dumpall` / `umm dumpunmapped`; writing new base keys is absent. There
+  is no `umm unmapped` command and no `gps` accessor / `exif.gps.position`
+  (camera GPS is Location struct fields).
+- Do not add metadata semantics, reconciliation, casting, mapping, or backend
+  behavior in this repo. Pass options through to libumm (`ReadOptions` /
+  `WriteOptions` / `SyncOptions` / `MatchOptions` / `CastOptions`) and present
+  libumm results (`umm::describe` for `umm map`).
 - No exceptions across the libumm boundary. The CLI may use exceptions
   internally but must not rely on any thrown from libumm; public libumm calls
   return `umm::Result<T>`.
