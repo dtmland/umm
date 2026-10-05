@@ -122,7 +122,7 @@ Do not delete these files until a human consolidates them.
 | # | Document | Stage | Depends | Progress |
 |---|---|---|---|---|
 | 16 | [Pin and source-break migration](16-pin-and-source-break.md) | 6 Align | 01–15 | complete |
-| 17 | [Cast and `--report-casts`](17-cast.md) | 7 New APIs | 16 | not started |
+| 17 | [Cast and `--report-casts`](17-cast.md) | 7 New APIs | 16 | complete |
 | 18 | [Map (`umm::describe`)](18-map.md) | 7 New APIs | 16 | not started |
 | 19 | [Contract docs, completions, Windows zip](19-docs-and-contract.md) | 8 Contract | 16–18 | not started |
 

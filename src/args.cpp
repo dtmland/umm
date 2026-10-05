@@ -17,6 +17,8 @@ void apply(ParsedArgs& out, const FlagSpec& f, const std::string& value) {
     out.help = true;
   } else if (f.name == "recursive") {
     out.recursive = true;
+  } else if (f.name == "group" && out.options.count("group") && !out.options["group"].empty()) {
+    out.options["group"] += "," + value;
   } else {
     out.options[std::string(f.name)] = value;
   }

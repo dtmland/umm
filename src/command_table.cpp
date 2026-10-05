@@ -16,7 +16,9 @@ const FlagSpec kDryRun{"dry-run", 0, false, "", "report what would change withou
 std::vector<CommandSpec> build() {
   return {
       {"read", "umm read [options] FILE...", "print all canonical metadata", Operands::files, 1,
-       {{"sources", 0, false, "", "show provenance for each property"}}, true},
+       {{"sources", 0, false, "", "show provenance for each property"},
+        {"report-casts", 0, false, "", "list castCandidates() without applying them"}},
+       true},
       {"get", "umm get [options] FILE PROPERTY...", "print named properties", Operands::file_then_args, 2,
        {}, true},
       {"set", "umm set [options] FILE ASSIGN...", "assign properties and persist",
@@ -39,6 +41,13 @@ std::vector<CommandSpec> build() {
       {"sync", "umm sync [options] FILE...", "make embedded and sidecar carriers agree",
        Operands::files, 1,
        {{"direction", 0, true, "DIR", "both|embedded-to-sidecar|sidecar-to-embedded"}, kDryRun},
+       true},
+      {"cast", "umm cast [options] FILE... up|down|side",
+       "preview or apply a cast direction (default is preview)", Operands::file_then_args, 2,
+       {{"group", 0, true, "NAME", "cast group (repeatable; empty = all for the direction)"},
+        {"force", 0, false, "", "apply groups whose status is needs_force"},
+        {"include-approximate", 0, false, "", "apply approximate groups such as videoCreated"},
+        {"apply", 0, false, "", "persist through umm::cast (default is dry-run preview)"}},
        true},
       {"caps", "umm caps [options] FILE|TYPE...", "show per-backend capabilities", Operands::args, 1, {},
        false},
@@ -124,6 +133,11 @@ std::string command_help(const CommandSpec& cmd) {
   for (const FlagSpec& f : cmd.flags) print_flag(os, f);
   for (const FlagSpec& f : global_flags()) print_flag(os, f);
   if (cmd.batch_files) print_flag(os, kRecursive);
+  if (cmd.name == "cast") {
+    os << "\nDirection is a positional operand (up, down, or side), not --direction.\n"
+          "Default is preview (CastOptions::dry_run). --apply sets dry_run false; "
+          "libumm persists through umm::write. --group may be repeated.\n";
+  }
   if (cmd.name == "geotag") {
     os << "\n--track is required. Formats are those umm::importTrack accepts "
           "(GPX/NMEA/KML); the CLI does not parse tracks.\n"
