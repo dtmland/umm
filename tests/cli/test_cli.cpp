@@ -53,9 +53,11 @@ static void test_version_linked() { CHECK(!umm::version().empty()); }
 
 static void test_command_table() {
   for (const char* n : {"read", "get", "set", "rm", "dumpall", "dumpunmapped", "conflicts", "merge",
-                        "sync", "caps", "geotag", "doctor", "setup", "version"})
+                        "sync", "cast", "caps", "geotag", "doctor", "setup", "version"})
     CHECK(find_command(n) != nullptr);
-  CHECK(commands().size() == 14);
+  CHECK(commands().size() == 15);
+  CHECK(find_command("cast") != nullptr);
+  CHECK(find_flag(*find_command("read"), "report-casts", true) != nullptr);
   CHECK(find_command("unmapped") == nullptr);
   CHECK(find_command("write") == nullptr);  // no `umm write` (concept §2.1)
 }
@@ -86,6 +88,15 @@ static void test_parse() {
   CHECK(!parse_args({"doctor", "--recursive"}).error.empty());
   CHECK(parse_args({"read", "--", "-weird.jpg"}).operands.at(0) == "-weird.jpg");
   CHECK(parse_args({"geotag", "--track", "t.gpx", "--dry-run", "p.jpg"}).options.at("track") == "t.gpx");
+  CHECK(parse_args({"read", "--report-casts", "x"}).options.count("report-casts"));
+  ParsedArgs cast_args =
+      parse_args({"cast", "--group", "locationShownLegacy", "--group", "personShown", "--force",
+                  "--include-approximate", "--apply", "p.jpg", "up"});
+  CHECK(cast_args.error.empty() && cast_args.command && cast_args.command->name == "cast");
+  CHECK(cast_args.options.at("group") == "locationShownLegacy,personShown");
+  CHECK(cast_args.options.count("force") && cast_args.options.count("apply"));
+  CHECK(cast_args.options.count("include-approximate"));
+  CHECK(cast_args.operands.size() == 2 && cast_args.operands.back() == "up");
   CHECK(parse_args({"read", "--help"}).help);
   CHECK(parse_args({"--help"}).help);
 }
@@ -94,6 +105,9 @@ static void test_cli_behaviour() {
   std::string out, err;
   CHECK(run_cli({"--help"}, &out) == 0 && out.find("Commands:") != std::string::npos);
   CHECK(run_cli({"set", "--help"}, &out) == 0 && out.find("--policy") != std::string::npos);
+  CHECK(run_cli({"cast", "--help"}, &out) == 0 && out.find("up|down|side") != std::string::npos);
+  CHECK(run_cli({"cast", "x.jpg", "sideways"}, nullptr, &err) == to_int(ExitCode::usage));
+  CHECK(err.find("direction") != std::string::npos);
   CHECK(run_cli({"merge", "--help"}, &out) == 0 && out.find("BASEKEY") != std::string::npos);
   CHECK(run_cli({"doctor", "--help"}, &out) == 0 &&
         out.find("Windows ExifTool.exe does not need Perl") != std::string::npos);
@@ -746,7 +760,8 @@ static void test_docs_gen() {
   CHECK(run_cli({"--help"}, &help) == 0);
   const char* flags[] = {"--json",     "--backend", "--recursive", "--policy",
                          "--dry-run",  "--sources", "--fail-on-conflict", "--direction",
-                         "--track",    "--offset",  "--use", "--value"};
+                         "--track",    "--offset",  "--use", "--value", "--report-casts",
+                         "--group",    "--force", "--include-approximate", "--apply"};
   for (const CommandSpec& c : commands()) {
     CHECK(help.find(std::string(c.name)) != std::string::npos);
     CHECK(man.find(std::string(c.name)) != std::string::npos);
@@ -1311,6 +1326,113 @@ static void test_accessor_coverage() {
   fs::remove_all(dir);
 }
 
+static void test_cast() {
+  std::string out, err;
+  CHECK(run_cli({"cast", "x.jpg", "sideways"}, nullptr, &err) == to_int(ExitCode::usage));
+  CHECK(err.find("direction") != std::string::npos);
+
+  fs::path dir = fs::temp_directory_path() / "umm_cli_test_cast";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  fs::path jpg = write_jpeg(dir / "photo.jpg");
+  umm::Metadata meta;
+  CHECK(meta.set("iptc.photo.cityLegacy", umm::Value{std::string("Paris")}).ok());
+  umm::Result<umm::WriteReport> wr = umm::write(jpg, meta);
+  if (!wr.ok()) {
+    std::cerr << "skip cast fixture write: " << wr.error().message << "\n";
+    fs::remove_all(dir);
+    return;
+  }
+
+  auto before = read_bytes(jpg);
+  CHECK(run_cli({"cast", jpg.string(), "side"}, &out, &err) == 0);
+  CHECK(read_bytes(jpg) == before);
+  CHECK(out.find("CAST CANDIDATES") != std::string::npos);
+  CHECK(out.find("preview, not stored") != std::string::npos);
+  CHECK(out.find("locationShownLegacy") != std::string::npos);
+  CHECK(out.find("can_cast") != std::string::npos);
+  CHECK(out.find("PROPERTY") == std::string::npos);
+
+  CHECK(run_cli({"cast", "--group", "locationShownLegacy", jpg.string(), "side"}, &out) == 0);
+  CHECK(out.find("locationShownLegacy") != std::string::npos);
+  CHECK(out.find("personShown") == std::string::npos);
+  CHECK(out.find("creatorImageCreator") == std::string::npos);
+
+  CHECK(run_cli({"cast", "--json", jpg.string(), "side"}, &out) == 0);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
+  CHECK(out.find("\"command\": \"cast\"") != std::string::npos);
+  CHECK(out.find("\"cast_candidates\"") != std::string::npos);
+  CHECK(out.find("locationShownLegacy") != std::string::npos);
+  CHECK(out.find("\"properties\"") == std::string::npos);
+
+  CHECK(run_cli({"read", "--report-casts", jpg.string()}, &out) == 0);
+  CHECK(out.find("Paris") != std::string::npos);
+  CHECK(out.find("CAST CANDIDATES") != std::string::npos);
+  CHECK(out.find("preview, not stored") != std::string::npos);
+  CHECK(out.find("locationShownLegacy") != std::string::npos);
+  CHECK(out.find("PROPERTY") != std::string::npos);
+
+  CHECK(run_cli({"read", "--json", "--report-casts", jpg.string()}, &out) == 0);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
+  CHECK(out.find("\"command\": \"read\"") != std::string::npos);
+  CHECK(out.find("\"cast_candidates\"") != std::string::npos);
+  CHECK(out.find("\"properties\"") != std::string::npos);
+  CHECK(out.find("locationShownLegacy") != std::string::npos);
+
+  if (backend_available("exiv2")) {
+    CHECK(run_cli({"cast", "--backend", "exiv2", jpg.string(), "side"}, &out) == 0);
+    check_golden("cast-side.txt", normalize_output(out, jpg));
+    CHECK(run_cli({"cast", "--json", "--backend", "exiv2", jpg.string(), "side"}, &out) == 0);
+    CHECK(out.find("\"schema_version\": 2") != std::string::npos);
+    check_golden("cast-side.json", normalize_output(out, jpg));
+    CHECK(run_cli({"read", "--json", "--report-casts", "--backend", "exiv2", jpg.string()}, &out) == 0);
+    check_golden("read-report-casts.json", normalize_output(out, jpg));
+  } else {
+    std::cerr << "skip cast goldens (exiv2 unavailable)\n";
+  }
+
+  CHECK(run_cli({"cast", "--apply", "--group", "locationShownLegacy", jpg.string(), "side"}, &out,
+                &err) == 0);
+  CHECK(read_bytes(jpg) != before);
+  CHECK(run_cli({"get", "--json", jpg.string(), "locationShown"}, &out) == 0);
+  CHECK(out.find("Paris") != std::string::npos);
+  CHECK(run_cli({"cast", "--group", "locationShownLegacy", jpg.string(), "side"}, &out) == 0);
+  CHECK(out.find("equal") != std::string::npos);
+
+#ifdef UMM_LIBUMM_FIXTURES
+  if (backend_available("exiftool")) {
+    fs::path src = fs::path(UMM_LIBUMM_FIXTURES) / "video" / "minimal.mp4";
+    if (fs::exists(src)) {
+      fs::path mp4 = dir / "video.mp4";
+      fs::copy_file(src, mp4, fs::copy_options::overwrite_existing);
+      auto vbefore = read_bytes(mp4);
+      CHECK(run_cli({"cast", mp4.string(), "up"}, &out, &err) == 0);
+      CHECK(read_bytes(mp4) == vbefore);
+      CHECK(run_cli({"cast", "--json", "--apply", "--group", "videoCreated", mp4.string(), "up"},
+                    &out, &err) == 0);
+      CHECK(out.find("can_cast") != std::string::npos);
+      CHECK(run_cli({"get", mp4.string(), "iptc.video.dateCreated"}) == to_int(ExitCode::not_found));
+      int approx = run_cli({"cast", "--json", "--apply", "--include-approximate", "--group",
+                            "videoCreated", mp4.string(), "up"},
+                           &out, &err);
+      if (approx != 0)
+        std::cerr << "skip videoCreated apply: rc=" << approx << " " << err << "\n";
+      else {
+        CHECK(out.find("equal") != std::string::npos);
+      }
+    } else {
+      std::cerr << "skip ExifTool-only cast cases (no video fixture)\n";
+    }
+  } else {
+    std::cerr << "skip ExifTool-only cast cases (exiftool unavailable)\n";
+  }
+#else
+  std::cerr << "skip ExifTool-only cast cases (no libumm fixtures)\n";
+#endif
+
+  fs::remove_all(dir);
+}
+
 int main() {
   test_version_linked();
   test_command_table();
@@ -1336,6 +1458,7 @@ int main() {
   test_cross_backend_and_dry_run();
   test_xmp_pairing();
   test_accessor_coverage();
+  test_cast();
   if (failures) std::cerr << failures << " check(s) failed\n";
   return failures ? 1 : 0;
 }

@@ -1,6 +1,6 @@
 # Session 17 — Cast and `read --report-casts`
 
-Status: **not started**
+Status: **complete**
 
 ## Goal
 

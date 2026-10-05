@@ -1,0 +1,5 @@
+CAST CANDIDATES  (preview, not stored)
+GROUP                DIRECTION  STATUS    SOURCE           TARGET
+locationShownLegacy  side       can_cast  legacy location  iptc.photo.locationShownInTheImage
+  source_preview  city=Paris; provinceState=; countryName=; countryCode=; sublocation=
+  target_preview  city=; provinceState=; countryName=; countryCode=; sublocation=

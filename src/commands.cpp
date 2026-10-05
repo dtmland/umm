@@ -1,6 +1,7 @@
 #include "commands.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -64,7 +65,124 @@ umm::Result<void> check_file(const fs::path& p) {
 umm::ReadOptions read_options(const ParsedArgs& args) {
   umm::ReadOptions options;
   options.backend = args.backend;
+  options.report_casts = args.options.count("report-casts") != 0;
   return options;
+}
+
+const char* cast_direction_name(umm::CastDirection d) noexcept {
+  switch (d) {
+    case umm::CastDirection::up:
+      return "up";
+    case umm::CastDirection::down:
+      return "down";
+    case umm::CastDirection::side:
+      return "side";
+  }
+  return "up";
+}
+
+const char* cast_status_name(umm::CastStatus s) noexcept {
+  switch (s) {
+    case umm::CastStatus::can_cast:
+      return "can_cast";
+    case umm::CastStatus::needs_force:
+      return "needs_force";
+    case umm::CastStatus::equal:
+      return "equal";
+    case umm::CastStatus::source_empty:
+      return "source_empty";
+    case umm::CastStatus::target_not_storable:
+      return "target_not_storable";
+    case umm::CastStatus::ambiguous:
+      return "ambiguous";
+  }
+  return "can_cast";
+}
+
+std::optional<umm::CastDirection> parse_cast_direction(std::string_view s) {
+  if (s == "up") return umm::CastDirection::up;
+  if (s == "down") return umm::CastDirection::down;
+  if (s == "side") return umm::CastDirection::side;
+  return std::nullopt;
+}
+
+std::vector<std::string> split_groups(const std::string& text) {
+  std::vector<std::string> out;
+  std::string cur;
+  auto flush = [&] {
+    while (!cur.empty() && std::isspace(static_cast<unsigned char>(cur.front()))) cur.erase(cur.begin());
+    while (!cur.empty() && std::isspace(static_cast<unsigned char>(cur.back()))) cur.pop_back();
+    if (!cur.empty()) out.push_back(cur);
+    cur.clear();
+  };
+  for (char c : text) {
+    if (c == ',')
+      flush();
+    else
+      cur += c;
+  }
+  flush();
+  return out;
+}
+
+umm::CastOptions cast_options(const ParsedArgs& args) {
+  umm::CastOptions options;
+  options.dry_run = args.options.count("apply") == 0;
+  options.force = args.options.count("force") != 0;
+  options.include_approximate = args.options.count("include-approximate") != 0;
+  auto it = args.options.find("group");
+  if (it != args.options.end()) options.groups = split_groups(it->second);
+  return options;
+}
+
+Json cast_candidate_json(const umm::CastCandidate& c) {
+  Json::Object o{{"group", Json(c.group)},
+                 {"direction", Json(cast_direction_name(c.direction))},
+                 {"status", Json(cast_status_name(c.status))}};
+  if (!c.source_id.empty()) o.emplace_back("source_id", Json(c.source_id));
+  if (!c.target_id.empty()) o.emplace_back("target_id", Json(c.target_id));
+  if (!c.source_preview.empty()) o.emplace_back("source_preview", Json(c.source_preview));
+  if (!c.target_preview.empty()) o.emplace_back("target_preview", Json(c.target_preview));
+  if (!c.notes.empty()) {
+    Json::Array notes;
+    for (const std::string& n : c.notes) notes.emplace_back(Json(n));
+    o.emplace_back("notes", Json(std::move(notes)));
+  }
+  return Json(std::move(o));
+}
+
+Json cast_candidates_json(const std::vector<umm::CastCandidate>& cs) {
+  Json::Array a;
+  for (const auto& c : cs) a.emplace_back(cast_candidate_json(c));
+  return Json(std::move(a));
+}
+
+std::string format_cast_candidates(const std::vector<umm::CastCandidate>& cs) {
+  if (cs.empty()) return "no cast candidates\n";
+  std::size_t gw = 5, dw = 9, sw = 6, srcw = 6;
+  for (const auto& c : cs) {
+    if (c.group.size() > gw) gw = c.group.size();
+    dw = std::max(dw, std::string_view(cast_direction_name(c.direction)).size());
+    sw = std::max(sw, std::string_view(cast_status_name(c.status)).size());
+    if (c.source_id.size() > srcw) srcw = c.source_id.size();
+  }
+  auto pad = [](std::string s, std::size_t w) {
+    if (s.size() < w) s.append(w - s.size(), ' ');
+    return s;
+  };
+  std::string out = pad("GROUP", gw) + "  " + pad("DIRECTION", dw) + "  " + pad("STATUS", sw) +
+                    "  " + pad("SOURCE", srcw) + "  TARGET\n";
+  for (const auto& c : cs) {
+    std::string line = pad(c.group, gw) + "  " + pad(cast_direction_name(c.direction), dw) + "  " +
+                       pad(cast_status_name(c.status), sw) + "  " + pad(c.source_id, srcw) + "  " +
+                       c.target_id;
+    while (!line.empty() && line.back() == ' ') line.pop_back();
+    out += line + "\n";
+    if (!c.source_preview.empty()) out += "  source_preview  " + c.source_preview + "\n";
+    if (!c.target_preview.empty()) out += "  target_preview  " + c.target_preview + "\n";
+    for (const std::string& n : c.notes) out += "  note  " + n + "\n";
+  }
+  return out;
 }
 
 void emit_reports(const ParsedArgs& args, const std::vector<FileReport>& reports,
@@ -132,10 +250,13 @@ ExitCode run_version(const ParsedArgs& args, std::ostream& out) {
 
 ExitCode run_read(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
   const bool sources = args.options.count("sources") != 0;
+  const bool report_casts = args.options.count("report-casts") != 0;
   std::vector<fs::path> files = expand_operands(args.operands, args.recursive);
   std::vector<FileReport> reports;
   std::vector<ExitCode> failures;
   umm::ReadOptions options = read_options(args);
+  std::string human_casts;
+  const bool multi = files.size() > 1;
   for (const fs::path& file : files) {
     umm::Result<void> pre = check_file(file);
     if (!pre.ok()) {
@@ -154,11 +275,19 @@ ExitCode run_read(const ParsedArgs& args, std::ostream& out, std::ostream& err) 
       std::optional<umm::PropertyValue> pv = r.value().get(id);
       if (pv) report.properties.push_back(property_row(id, *pv, sources));
     }
+    if (report_casts) {
+      report.json_extra.emplace_back("cast_candidates",
+                                     cast_candidates_json(r.value().castCandidates()));
+      if (multi) human_casts += "== " + file.string() + " ==\n";
+      human_casts += "CAST CANDIDATES  (preview, not stored)\n";
+      human_casts += format_cast_candidates(r.value().castCandidates());
+    }
     reports.push_back(std::move(report));
   }
   emit_reports(args, reports, failures, files.size(), out, err,
                sources ? std::vector<std::string>{"SOURCE", "RESOLUTION"} : std::vector<std::string>{},
                false);
+  if (!args.json && report_casts && !human_casts.empty()) out << human_casts;
   return summarize(failures);
 }
 
@@ -1248,6 +1377,50 @@ ExitCode run_setup(const ParsedArgs& args, std::ostream& out, std::ostream& err)
   return ExitCode::ok;
 }
 
+ExitCode run_cast(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+  if (args.operands.size() < 2) {
+    err << "umm cast: need FILE... and a direction (up, down, or side)\n";
+    return ExitCode::usage;
+  }
+  std::optional<umm::CastDirection> direction = parse_cast_direction(args.operands.back());
+  if (!direction) {
+    err << "umm cast: unknown direction '" << args.operands.back()
+        << "' (expected up, down, or side)\n";
+    return ExitCode::usage;
+  }
+  std::vector<std::string> file_ops(args.operands.begin(), args.operands.end() - 1);
+  umm::CastOptions options = cast_options(args);
+  std::vector<fs::path> files = expand_operands(file_ops, args.recursive);
+  std::vector<FileReport> reports;
+  std::vector<ExitCode> failures;
+  std::string human;
+  const bool multi = files.size() > 1;
+  for (const fs::path& file : files) {
+    umm::Result<void> pre = check_file(file);
+    if (!pre.ok()) {
+      reports.push_back({file.string(), false, pre.error().message, {}});
+      failures.push_back(exit_code_for(pre.error().code));
+      continue;
+    }
+    umm::Result<umm::CastReport> r = umm::cast(file, *direction, options);
+    if (!r.ok()) {
+      reports.push_back({file.string(), false, r.error().message, {}});
+      failures.push_back(exit_code_for(r.error().code));
+      continue;
+    }
+    FileReport report{file.string(), true, "", {}};
+    report.json_extra.emplace_back("cast_candidates", cast_candidates_json(r.value().candidates));
+    reports.push_back(report);
+    if (multi) human += "== " + file.string() + " ==\n";
+    human += "CAST CANDIDATES";
+    if (options.dry_run) human += "  (preview, not stored)";
+    human += "\n";
+    human += format_cast_candidates(r.value().candidates);
+  }
+  emit_inspect(args, reports, failures, files.size(), human, out, err);
+  return summarize(failures);
+}
+
 }  // namespace
 
 ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
@@ -1273,6 +1446,7 @@ ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& er
   if (cmd.name == "conflicts") return run_conflicts(args, out, err);
   if (cmd.name == "merge") return run_merge(args, out, err);
   if (cmd.name == "sync") return run_sync(args, out, err);
+  if (cmd.name == "cast") return run_cast(args, out, err);
   if (cmd.name == "caps") return run_caps(args, out, err);
   if (cmd.name == "geotag") return run_geotag(args, out, err);
   if (cmd.name == "doctor") return run_doctor(args, out, err);

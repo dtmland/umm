@@ -25,7 +25,8 @@ is a v1 non-goal).
 
 Stable human and JSON stdout for `version`, `caps JPEG`, and `read`/`get` on a
 generated still (plus `dumpunmapped`/`dumpall`/`conflicts` when libumm fixtures
-exist) live in `tests/goldens/`. Comparisons:
+exist, and `cast` / `read --report-casts` on a `cityLegacy` JPEG) live in
+`tests/goldens/`. Comparisons:
 
 - Normalize CRLF to LF.
 - Substitute the fixture path with `FILE` (native, generic, and JSON-escaped
@@ -33,7 +34,7 @@ exist) live in `tests/goldens/`. Comparisons:
 - Substitute CLI and libumm version strings with `VERSION`.
   `test_version_command` asserts `UMM_CLI_VERSION` from CMake
   `project(umm VERSION)`; do not hardcode `umm x.y.z` in CLI tests.
-- Force `--backend exiv2` for read/get/dump/conflicts goldens so extra
+- Force `--backend exiv2` for read/get/dump/conflicts/cast goldens so extra
   write-sync tags stay pinned. Caps goldens require both backends.
 
 JSON goldens assert `"schema_version": 2`.
@@ -59,7 +60,10 @@ tree, and cross-backend smoke (`set` with one backend, `get` with the other).
 Table-driven get/set walks every libumm accessor on photo and video fixtures,
 plus Location GPS `--json`. Reconcile tests cover
 `merge --value` and `sync --dry-run`; paired sidecar `--use` uses libumm's
-`paired.jpg` when present. Geotag tests generate a tiny GPX plus a still whose
+`paired.jpg` when present. Cast tests stamp `cityLegacy` on a generated JPEG
+for `umm cast` preview/apply and `read --report-casts`; approximate
+`videoCreated` apply is skipped when ExifTool (or the libumm MP4 fixture) is
+absent. Geotag tests generate a tiny GPX plus a still whose
 `dateCreated` falls on the track; naive timestamps without `--offset` use the
 semantics exit group. Doctor tests cover `--json` `schema_version` and
 discovery. Setup tests drive the native script `--record` branch into a temp

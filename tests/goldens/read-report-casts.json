@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "command": "read",
+  "files": [
+    {
+      "path": "FILE",
+      "ok": true,
+      "properties": [
+        {
+          "id": "iptc.photo.cityLegacy",
+          "value": "Paris"
+        }
+      ],
+      "cast_candidates": [
+        {
+          "group": "locationShownLegacy",
+          "direction": "side",
+          "status": "can_cast",
+          "source_id": "legacy location",
+          "target_id": "iptc.photo.locationShownInTheImage",
+          "source_preview": "city=Paris; provinceState=; countryName=; countryCode=; sublocation=",
+          "target_preview": "city=; provinceState=; countryName=; countryCode=; sublocation="
+        }
+      ]
+    }
+  ]
+}
