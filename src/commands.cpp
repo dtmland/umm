@@ -1,9 +1,11 @@
 #include "commands.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <ostream>
@@ -253,17 +255,18 @@ Json location_json(const umm::LocationAccess& loc) {
                            {"geotiff", Json(access_name(loc.geotiff))}});
 }
 
-Json unmapped_json(const std::vector<umm::UnmappedEntry>& entries) {
+Json entries_json(const std::vector<umm::BaseEntry>& entries) {
   Json::Array a;
   for (const auto& e : entries) {
     a.emplace_back(Json(Json::Object{{"family", Json(e.key.family)},
                                      {"key", Json(e.key.key)},
-                                     {"value", Json(e.value)}}));
+                                     {"value", Json(e.value)},
+                                     {"cast_source", Json(e.cast_source)}}));
   }
   return Json(std::move(a));
 }
 
-std::string format_unmapped(const std::vector<umm::UnmappedEntry>& entries) {
+std::string format_entries(const std::vector<umm::BaseEntry>& entries) {
   std::size_t fw = 6, kw = 3;
   for (const auto& e : entries) {
     if (e.key.family.size() > fw) fw = e.key.family.size();
@@ -289,7 +292,7 @@ Json conflicts_json(const std::vector<umm::ConflictEntry>& entries) {
     for (const auto& c : e.candidates) {
       Json::Array srcs;
       for (const auto& s : c.sources) {
-        srcs.emplace_back(Json(Json::Object{{"raw_key", Json(s.raw_key)},
+        srcs.emplace_back(Json(Json::Object{{"base_key", Json(s.base_key)},
                                             {"backend", Json(s.backend)},
                                             {"container", Json(s.container)}}));
       }
@@ -381,7 +384,7 @@ void emit_inspect(const ParsedArgs& args, const std::vector<FileReport>& reports
         << " file(s) failed\n";
 }
 
-ExitCode run_unmapped(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+ExitCode run_dump(const ParsedArgs& args, bool unmapped_only, std::ostream& out, std::ostream& err) {
   std::vector<fs::path> files = expand_operands(args.operands, args.recursive);
   std::vector<FileReport> reports;
   std::vector<ExitCode> failures;
@@ -401,11 +404,13 @@ ExitCode run_unmapped(const ParsedArgs& args, std::ostream& out, std::ostream& e
       failures.push_back(exit_code_for(r.error().code));
       continue;
     }
+    const std::vector<umm::BaseEntry>& entries =
+        unmapped_only ? r.value().dumpUnmapped() : r.value().dumpAll();
     FileReport report{file.string(), true, "", {}};
-    report.json_extra.emplace_back("unmapped", unmapped_json(r.value().unmapped()));
+    report.json_extra.emplace_back("entries", entries_json(entries));
     reports.push_back(report);
     if (multi) human += "== " + file.string() + " ==\n";
-    human += format_unmapped(r.value().unmapped());
+    human += format_entries(entries);
   }
   emit_inspect(args, reports, failures, files.size(), human, out, err);
   return summarize(failures);
@@ -486,7 +491,7 @@ const char* storage_method_name(umm::StorageDecision::Method m) noexcept {
   return "embedded";
 }
 
-Json written_json(const std::vector<umm::UnmappedKey>& keys) {
+Json written_json(const std::vector<umm::BaseKey>& keys) {
   Json::Array a;
   for (const auto& k : keys)
     a.emplace_back(Json(Json::Object{{"family", Json(k.family)}, {"key", Json(k.key)}}));
@@ -747,7 +752,7 @@ ExitCode run_merge(const ParsedArgs& args, std::ostream& out, std::ostream& err)
   const bool has_use = args.options.count("use") != 0;
   const bool has_value = args.options.count("value") != 0;
   if (has_use == has_value) {
-    err << "umm merge: exactly one of --use RAWKEY or --value V is required\n";
+    err << "umm merge: exactly one of --use BASEKEY or --value V is required\n";
     return ExitCode::usage;
   }
   if (args.operands.size() < 2) {
@@ -985,7 +990,21 @@ ExitCode run_geotag(const ParsedArgs& args, std::ostream& out, std::ostream& err
       failures.push_back(exit_code_for(match.error().code));
       continue;
     }
-    umm::Result<void> set = meta.setGps(match.value().position);
+    std::vector<umm::Structure> items;
+    if (const auto existing = meta.locationCreated()) {
+      if (const auto* list = std::get_if<std::vector<umm::Structure>>(&existing->value.data))
+        items = *list;
+    }
+    if (items.empty()) items.emplace_back();
+    items.front().insert_or_assign("gpsLatitude", umm::Value{match.value().position.latitude});
+    items.front().insert_or_assign("gpsLongitude", umm::Value{match.value().position.longitude});
+    if (match.value().position.altitude_meters) {
+      const double alt = *match.value().position.altitude_meters;
+      items.front().insert_or_assign("gpsAltitude", umm::Value{std::fabs(alt)});
+      items.front().insert_or_assign("gpsAltitudeRef",
+                                    umm::Value{std::int64_t{alt < 0 ? 1 : 0}});
+    }
+    umm::Result<void> set = meta.setLocationCreated(std::move(items));
     if (!set.ok()) {
       reports.push_back({file.string(), false, set.error().message, {}});
       failures.push_back(exit_code_for(set.error().code));
@@ -1249,7 +1268,8 @@ ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& er
   if (cmd.name == "get") return run_get(args, out, err);
   if (cmd.name == "set") return run_set(args, out, err);
   if (cmd.name == "rm") return run_rm(args, out, err);
-  if (cmd.name == "unmapped") return run_unmapped(args, out, err);
+  if (cmd.name == "dumpall") return run_dump(args, false, out, err);
+  if (cmd.name == "dumpunmapped") return run_dump(args, true, out, err);
   if (cmd.name == "conflicts") return run_conflicts(args, out, err);
   if (cmd.name == "merge") return run_merge(args, out, err);
   if (cmd.name == "sync") return run_sync(args, out, err);

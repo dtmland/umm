@@ -52,10 +52,11 @@ static int run_cli(std::vector<std::string> a, std::string* out = nullptr, std::
 static void test_version_linked() { CHECK(!umm::version().empty()); }
 
 static void test_command_table() {
-  for (const char* n : {"read", "get", "set", "rm", "unmapped", "conflicts", "merge", "sync", "caps",
-                        "geotag", "doctor", "setup", "version"})
+  for (const char* n : {"read", "get", "set", "rm", "dumpall", "dumpunmapped", "conflicts", "merge",
+                        "sync", "caps", "geotag", "doctor", "setup", "version"})
     CHECK(find_command(n) != nullptr);
-  CHECK(commands().size() == 13);
+  CHECK(commands().size() == 14);
+  CHECK(find_command("unmapped") == nullptr);
   CHECK(find_command("write") == nullptr);  // no `umm write` (concept §2.1)
 }
 
@@ -105,7 +106,7 @@ static void test_cli_behaviour() {
   CHECK(err.find("1.jpg") != std::string::npos && err.find("2.jpg") != std::string::npos);
   CHECK(err.find("2 of 2") != std::string::npos);
   CHECK(run_cli({"read", "--json", "/no/such/1.jpg"}, &out) == to_int(ExitCode::io));
-  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
 }
 
 static void test_batch_recursive() {
@@ -127,7 +128,10 @@ static void test_property_seam() {
   auto c = resolve_property("creator", umm::MediaDomain::photo);
   CHECK(c.ok() && c.value().is_accessor());
   auto g = resolve_property("gps", umm::MediaDomain::video);
-  CHECK(g.ok() && g.value().is_accessor());
+  CHECK(!g.ok() && g.error().code == umm::ErrorCode::unknown_property);
+  CHECK(!resolve_property("exif.gps.position", umm::MediaDomain::photo).ok());
+  auto loc = resolve_property("locationCreated", umm::MediaDomain::photo);
+  CHECK(loc.ok() && loc.value().is_accessor());
   CHECK(accessor_names().size() >= 38);
   for (auto n : accessor_names()) CHECK(resolve_property(n, umm::MediaDomain::unknown).ok());
   umm::Metadata empty;  // getters are callable through the bound pointer
@@ -210,9 +214,9 @@ static void test_output() {
                                     Json(Json::Array{Json(Json::Object{{"name", Json("Al")}})}),
                                     "1 entry", {}}}};
   std::string doc = make_document("read", {f}).dump(-1);
-  CHECK(doc.rfind("{\"schema_version\":1,\"command\":\"read\"", 0) == 0);
+  CHECK(doc.rfind("{\"schema_version\":2,\"command\":\"read\"", 0) == 0);
   CHECK(doc.find("\"value\":[{\"name\":\"Al\"}]") != std::string::npos);  // struct → full JSON
-  CHECK(make_document("version", {}, {{"version", Json("example")}}).dump(-1).find("\"schema_version\":1") !=
+  CHECK(make_document("version", {}, {{"version", Json("example")}}).dump(-1).find("\"schema_version\":2") !=
         std::string::npos);
   std::string table = format_table({f});
   CHECK(table.find("iptc.photo.creator") != std::string::npos && table.find("1 entry") != std::string::npos);
@@ -300,7 +304,7 @@ static void test_version_command() {
   CHECK(out.find("libumm ") != std::string::npos);
   CHECK(out.find("STANDARD") != std::string::npos);
   CHECK(run_cli({"version", "--json"}, &out) == 0);
-  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
   CHECK(out.find("\"command\": \"version\"") != std::string::npos);
   CHECK(out.find("\"standards\"") != std::string::npos);
   CHECK(out.find("\"libumm\"") != std::string::npos);
@@ -340,7 +344,7 @@ static void test_read_get() {
   CHECK(out.find("iptc.photo.creator") != std::string::npos);
   CHECK(out.find("Jane") != std::string::npos);
   CHECK(run_cli({"read", "--json", jpg.string()}, &out) == 0);
-  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
   CHECK(out.find("\"command\": \"read\"") != std::string::npos);
   CHECK(run_cli({"read", "--sources", jpg.string()}, &out) == 0);
   CHECK(out.find("RESOLUTION") != std::string::npos || out.find("single") != std::string::npos);
@@ -400,16 +404,16 @@ static void test_read_get() {
       fs::path mp4 = dir / "video.mp4";
       fs::copy_file(src, mp4, fs::copy_options::overwrite_existing);
       if (backend_available("exiftool")) {
-        // libumm 0.1.1: default read/unmapped use preferred_backend (ExifTool for MP4).
+        // Default read/dumpunmapped use preferred_backend (ExifTool for MP4).
         CHECK(run_cli({"read", "--json", mp4.string()}, &out, &err) == 0);
         CHECK(err.find("Exiv2 read failed") == std::string::npos);
         CHECK(out.find("iptc.video.dateCreated") != std::string::npos);
-        CHECK(run_cli({"unmapped", mp4.string()}, &out, &err) == 0);
+        CHECK(run_cli({"dumpunmapped", mp4.string()}, &out, &err) == 0);
         CHECK(err.find("Exiv2 read failed") == std::string::npos);
         std::string def_unmapped = out;
         CHECK(def_unmapped.find("QuickTime") != std::string::npos ||
               def_unmapped.find("ExifTool") != std::string::npos);
-        CHECK(run_cli({"unmapped", "--backend", "exiftool", mp4.string()}, &out, &err) == 0);
+        CHECK(run_cli({"dumpunmapped", "--backend", "exiftool", mp4.string()}, &out, &err) == 0);
         CHECK(out == def_unmapped);
       }
       int rc = run_cli({"get", mp4.string(), "creator"});
@@ -442,7 +446,7 @@ static void test_inspect() {
   CHECK(out.find("TYPE") != std::string::npos && out.find("JPEG") != std::string::npos);
   CHECK(out.find("exiv2") != std::string::npos);
   CHECK(run_cli({"caps", "--json", "JPEG"}, &out) == 0);
-  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
   CHECK(out.find("\"command\": \"caps\"") != std::string::npos);
   CHECK(out.find("\"capabilities\"") != std::string::npos);
   CHECK(run_cli({"caps", "not-a-real-type"}, nullptr, &err) != 0);
@@ -453,13 +457,16 @@ static void test_inspect() {
   fs::path conflict = fixtures / "jpeg" / "full-conflicting.jpg";
   fs::path minimal = fixtures / "jpeg" / "minimal.jpg";
   if (fs::exists(unknown) && backend_available("exiv2")) {
-    CHECK(run_cli({"unmapped", unknown.string()}, &out) == 0);
+    CHECK(run_cli({"dumpunmapped", unknown.string()}, &out) == 0);
     CHECK(out.find("FAMILY") != std::string::npos);
-    CHECK(run_cli({"unmapped", "--json", unknown.string()}, &out) == 0);
-    CHECK(out.find("\"unmapped\"") != std::string::npos);
-    CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+    CHECK(run_cli({"dumpunmapped", "--json", unknown.string()}, &out) == 0);
+    CHECK(out.find("\"entries\"") != std::string::npos);
+    CHECK(run_cli({"dumpall", "--json", unknown.string()}, &out) == 0);
+    CHECK(out.find("\"command\": \"dumpall\"") != std::string::npos);
+    CHECK(out.find("\"cast_source\"") != std::string::npos);
+    CHECK(out.find("\"schema_version\": 2") != std::string::npos);
   } else {
-    std::cerr << "skip unmapped fixture\n";
+    std::cerr << "skip dump fixture\n";
   }
   if (fs::exists(conflict) && backend_available("exiv2")) {
     CHECK(run_cli({"conflicts", conflict.string()}, &out) == 0);
@@ -475,11 +482,13 @@ static void test_inspect() {
     CHECK(out.find("JPEG") != std::string::npos);
   }
 #else
-  std::cerr << "skip unmapped/conflicts fixtures (no libumm source dir)\n";
+  std::cerr << "skip dump/conflicts fixtures (no libumm source dir)\n";
 #endif
 
-  // unmapped never writes: a missing file is I/O, not a mutation.
-  CHECK(run_cli({"unmapped", "/no/such/unmapped.jpg"}, nullptr, &err) == to_int(ExitCode::io));
+  CHECK(run_cli({"unmapped", "/no/such/unmapped.jpg"}, nullptr, &err) == to_int(ExitCode::usage));
+  // dump views never write: a missing file is I/O, not a mutation.
+  CHECK(run_cli({"dumpall", "/no/such/dumpall.jpg"}, nullptr, &err) == to_int(ExitCode::io));
+  CHECK(run_cli({"dumpunmapped", "/no/such/dumpunmapped.jpg"}, nullptr, &err) == to_int(ExitCode::io));
 }
 
 static std::vector<unsigned char> read_bytes(const fs::path& path) {
@@ -559,7 +568,7 @@ static void test_set_rm() {
   CHECK(read_bytes(jpg) == before);
   CHECK(run_cli({"get", jpg.string(), "headline"}) == to_int(ExitCode::not_found));
   CHECK(run_cli({"set", "--dry-run", "--json", jpg.string(), "headline=Summit"}, &out) == 0);
-  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
   CHECK(out.find("\"command\": \"set\"") != std::string::npos);
 
   CHECK(run_cli({"set", "--policy", "sidecar", jpg.string(), "headline=SidecarHead"}) == 0);
@@ -759,7 +768,7 @@ static void test_geotag_doctor_setup() {
   CHECK(out.find("dnf") != std::string::npos);
   CHECK(out.find("pacman") != std::string::npos);
   CHECK(run_cli({"doctor", "--json"}, &out) == 0);
-  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
   CHECK(out.find("\"command\": \"doctor\"") != std::string::npos);
   CHECK(out.find("\"discovery\"") != std::string::npos);
   CHECK(out.find("\"tested_version\"") != std::string::npos);
@@ -788,7 +797,7 @@ static void test_geotag_doctor_setup() {
     CHECK(out.find("40.7128") != std::string::npos);
     CHECK(read_bytes(jpg) == before);
     CHECK(run_cli({"geotag", "--dry-run", "--json", "--track", gpx.string(), jpg.string()}, &out) == 0);
-    CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+    CHECK(out.find("\"schema_version\": 2") != std::string::npos);
     CHECK(out.find("\"command\": \"geotag\"") != std::string::npos);
     CHECK(run_cli({"geotag", "--track", gpx.string(), jpg.string()}, &out, &err) == 0);
     CHECK(run_cli({"get", jpg.string(), "gps"}, &out) == 0);
@@ -993,14 +1002,14 @@ static void test_goldens() {
   CHECK(run_cli({"version"}, &out) == 0);
   check_golden("version.txt", normalize_output(out));
   CHECK(run_cli({"version", "--json"}, &out) == 0);
-  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
   check_golden("version.json", normalize_output(out));
 
   if (backend_available("exiv2") && backend_available("exiftool")) {
     CHECK(run_cli({"caps", "JPEG"}, &out) == 0);
     check_golden("caps-jpeg.txt", normalize_output(out));
     CHECK(run_cli({"caps", "--json", "JPEG"}, &out) == 0);
-    CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+    CHECK(out.find("\"schema_version\": 2") != std::string::npos);
     check_golden("caps-jpeg.json", normalize_output(out));
   } else {
     std::cerr << "skip caps goldens (need both backends)\n";
@@ -1028,7 +1037,7 @@ static void test_goldens() {
   CHECK(run_cli(with_backend({"read", jpg.string()}), &out) == 0);
   check_golden("read.txt", normalize_output(out, jpg));
   CHECK(run_cli(with_backend({"read", "--json", jpg.string()}), &out) == 0);
-  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
   {
     const std::string n = normalize_output(out, jpg);
     CHECK(n.find("\"path\": \"FILE\"") != std::string::npos);
@@ -1081,7 +1090,7 @@ static void test_batch_recursive_cli() {
   std::string out, err;
   int rc = run_cli({"read", "--json", good.string(), (dir / "missing.jpg").string()}, &out, &err);
   CHECK(rc == to_int(ExitCode::io));
-  CHECK(out.find("\"schema_version\": 1") != std::string::npos);
+  CHECK(out.find("\"schema_version\": 2") != std::string::npos);
   CHECK(out.find("Tree") != std::string::npos);
   CHECK(out.find("\"ok\": true") != std::string::npos);
   CHECK(out.find("\"ok\": false") != std::string::npos);

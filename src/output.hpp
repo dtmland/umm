@@ -11,7 +11,7 @@
 
 namespace umm_cli {
 
-constexpr int kSchemaVersion = 1;
+constexpr int kSchemaVersion = 2;
 
 // Minimal JSON value (no third-party dependency).
 class Json {
@@ -74,7 +74,7 @@ std::string format_table(const std::vector<FileReport>& files, const std::vector
 std::string format_values(const std::vector<FileReport>& files);
 
 // One JSON document per invocation:
-//   {"schema_version":1,"command":"read","files":[{"path":..,"ok":true,
+//   {"schema_version":2,"command":"read","files":[{"path":..,"ok":true,
 //     "properties":[{"id":..,"value":..}]}]}
 // `extra` lets read-type commands without file reports (version, doctor)
 // attach their payload fields at the top level.

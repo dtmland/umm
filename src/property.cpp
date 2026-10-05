@@ -6,7 +6,6 @@ namespace umm_cli {
 
 namespace {
 
-constexpr std::string_view kGpsId = "exif.gps.position";
 constexpr std::string_view kRatingId = "iptc.photo.imageRating";
 
 umm::Error invalid_value(std::string_view name) {
@@ -20,13 +19,12 @@ umm::Error unknown_property(std::string_view name) {
 }
 
 // One entry per public `std::optional<PropertyValue> NAME() const` getter in
-// libumm's include/umm/metadata.hpp (v0.1.1). Datatype is the photo-native
-// setter argument (libumm transposes for video). Ids stay in libumm.
+// libumm's include/umm/metadata.hpp. Datatype is the photo-native setter
+// argument (libumm transposes for video). Ids stay in libumm.
 struct Binding {
   std::string_view name;
   AccessorGetter getter;
   umm::Datatype datatype;
-  bool photo_only{false};
 };
 
 const Binding kBindings[] = {
@@ -37,7 +35,7 @@ const Binding kBindings[] = {
     {"copyrightNotice", &umm::Metadata::copyrightNotice, umm::Datatype::lang_alt},
     {"creditLine", &umm::Metadata::creditLine, umm::Datatype::text},
     {"keywords", &umm::Metadata::keywords, umm::Datatype::text_list},
-    {"rating", &umm::Metadata::rating, umm::Datatype::real, true},
+    {"rating", &umm::Metadata::rating, umm::Datatype::real},
     {"title", &umm::Metadata::title, umm::Datatype::lang_alt},
     {"altTextAccessibility", &umm::Metadata::altTextAccessibility, umm::Datatype::lang_alt},
     {"extendedDescriptionAccessibility", &umm::Metadata::extendedDescriptionAccessibility,
@@ -61,7 +59,6 @@ const Binding kBindings[] = {
     {"propertyReleaseStatus", &umm::Metadata::propertyReleaseStatus, umm::Datatype::text},
     {"copyrightOwner", &umm::Metadata::copyrightOwner, umm::Datatype::structure_list},
     {"licensor", &umm::Metadata::licensor, umm::Datatype::structure_list},
-    {"gps", &umm::Metadata::gps, umm::Datatype::gps_coordinate},
     {"locationCreated", &umm::Metadata::locationCreated, umm::Datatype::structure_list},
     {"locationShown", &umm::Metadata::locationShown, umm::Datatype::structure_list},
     {"personShown", &umm::Metadata::personShown, umm::Datatype::structure_list},
@@ -81,12 +78,11 @@ const Binding* find_binding(std::string_view name) {
 }
 
 umm::Datatype datatype_for_id(std::string_view id) {
-  if (id == kGpsId) return umm::Datatype::gps_coordinate;
   if (auto def = umm::registry().find(id)) return def->datatype;
   return umm::Datatype::text;
 }
 
-bool known_id(std::string_view id) { return id == kGpsId || umm::registry().find(id).has_value(); }
+bool known_id(std::string_view id) { return umm::registry().find(id).has_value(); }
 
 template <typename T>
 umm::Result<void> set_alt(umm::Metadata& meta, const umm::Value& value,
@@ -109,17 +105,15 @@ const std::vector<std::string_view>& accessor_names() {
 umm::Result<ResolvedProperty> resolve_property(std::string_view name, umm::MediaDomain) {
   if (name.find('.') != std::string_view::npos) {
     if (known_id(name))
-      return ResolvedProperty{std::string(name), std::string(name), nullptr, datatype_for_id(name), false};
+      return ResolvedProperty{std::string(name), std::string(name), nullptr, datatype_for_id(name)};
   } else if (const Binding* b = find_binding(name)) {
-    return ResolvedProperty{std::string(name), "", b->getter, b->datatype, b->photo_only};
+    return ResolvedProperty{std::string(name), "", b->getter, b->datatype};
   }
   return unknown_property(name);
 }
 
 umm::Result<void> apply_set(umm::Metadata& metadata, const ResolvedProperty& property,
                             const umm::Value& value) {
-  if (property.photo_only && metadata.mediaDomain() == umm::MediaDomain::video)
-    return umm::Error{umm::ErrorCode::invalid_value, "rating is photo-only", "", ""};
   if (!property.is_accessor()) return metadata.set(property.property_id, value);
 
   const std::string_view name = property.name;
@@ -162,7 +156,6 @@ umm::Result<void> apply_set(umm::Metadata& metadata, const ResolvedProperty& pro
     return set_alt(metadata, value, &umm::Metadata::setPropertyReleaseStatus, name);
   if (name == "copyrightOwner") return set_alt(metadata, value, &umm::Metadata::setCopyrightOwner, name);
   if (name == "licensor") return set_alt(metadata, value, &umm::Metadata::setLicensor, name);
-  if (name == "gps") return set_alt(metadata, value, &umm::Metadata::setGps, name);
   if (name == "locationCreated") return set_alt(metadata, value, &umm::Metadata::setLocationCreated, name);
   if (name == "locationShown") return set_alt(metadata, value, &umm::Metadata::setLocationShown, name);
   if (name == "personShown") return set_alt(metadata, value, &umm::Metadata::setPersonShown, name);
@@ -198,8 +191,6 @@ umm::Result<void> apply_set(umm::Metadata& metadata, const ResolvedProperty& pro
 
 umm::Result<void> apply_remove(umm::Metadata& metadata, const ResolvedProperty& property) {
   if (!property.is_accessor()) return metadata.remove(property.property_id);
-  if (property.photo_only && metadata.mediaDomain() == umm::MediaDomain::video)
-    return umm::Error{umm::ErrorCode::invalid_value, "rating is photo-only", "", ""};
 
   std::optional<umm::PropertyValue> current = (metadata.*(property.getter))();
   if (!current) return {};
@@ -215,7 +206,6 @@ umm::Result<void> apply_remove(umm::Metadata& metadata, const ResolvedProperty& 
   }
   if (removed) return {};
   if (property.name == "rating") return metadata.remove(std::string(kRatingId));
-  if (property.name == "gps") return metadata.remove(std::string(kGpsId));
   return {};
 }
 
