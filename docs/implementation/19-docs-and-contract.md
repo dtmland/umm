@@ -5,7 +5,8 @@ Status: **not started**
 ## Goal
 
 Publish the 0.1.2 CLI contract: user/sysadmin/developer docs, README,
-completions/`umm(1)` verification, and examples that match sessions 16–18.
+completions/`umm(1)` verification, examples that match sessions 16–18, and
+the Windows binary release archive as **`.zip`** (not `.tar.gz`).
 No new commands.
 
 ## Concept
@@ -54,9 +55,35 @@ and [property reference](https://github.com/dtmland/libumm/blob/v0.1.2/docs/user
   commands, no `gps`, pass-through includes `CastOptions`; how to add a
   command still starts at the command table
 - [docs/sysadmin/install.md](../sysadmin/install.md) — pin 0.1.2 / CLI 0.2.0
-  only where it states versions; licensing unchanged
+  only where it states versions; licensing unchanged; Windows archive is
+  `.zip`
 - [docs/release-checklist.md](../release-checklist.md) — CMake VERSION is
-  still the only CLI version (now 0.2.0)
+  still the only CLI version (now 0.2.0); expected artifacts list Windows
+  `.zip` and Unix `.tar.gz`
+
+### Windows zip release archive
+
+Session 14 ships every OS as `umm-<version>-<os>.tar.gz`. Change **only**
+the Windows binary archive to zip.
+
+- Name: `umm-<version>-windows-2025.zip` (same version/OS tokens as today).
+- Linux and macOS stay `umm-<version>-ubuntu-24.04.tar.gz` and
+  `umm-<version>-macos-15.tar.gz`.
+- Corresponding-source Exiv2/Expat/zlib tarballs and
+  `umm-<version>-src.tar.gz` stay `.tar.gz`.
+- Archive **contents** stay the same (static `umm.exe`, completions, `umm(1)`,
+  notices, `install/` scripts, `README.md`). Do not add ExifTool.
+- Implement in `tools/build/package_release.py`: choose `.zip` when `--os`
+  is the Windows runner id (`windows-2025`). Use the stdlib `zipfile`
+  module; do not add a packaging dependency.
+- `.github/workflows/release.yml`: upload the Windows zip (the current
+  `path: release-dist/umm-*.tar.gz` misses it). `SHA256SUMS` greps must
+  expect `umm-.*windows-2025\.zip$`, not `.tar.gz`.
+- Offline `tests/build/test_release.py` must assert Windows → zip, other
+  binary OS ids → tar.gz, and that the workflow does not require a Windows
+  `.tar.gz`.
+- Update [tools/build/README.md](../../tools/build/README.md) and the root
+  README install line so they do not claim every OS is `.tar.gz`.
 
 ### Completions and man
 
@@ -87,6 +114,8 @@ and [property reference](https://github.com/dtmland/libumm/blob/v0.1.2/docs/user
 - `.github/copilot-instructions.md` only if it still contradicts the
   0.1.2 vocabulary after this planning change
 - Test/help goldens if they still mention `unmapped` / `gps` / `raw_key`
+- `tools/build/package_release.py`, `.github/workflows/release.yml`,
+  `tests/build/test_release.py`, `tools/build/README.md` (Windows zip)
 
 ## Acceptance
 
@@ -97,9 +126,12 @@ and [property reference](https://github.com/dtmland/libumm/blob/v0.1.2/docs/user
 - Docs-gen contract tests pass.
 - `docs/README.md` points at sessions 16–19 as the active implementation
   plan.
+- Windows binary artifact is `umm-<version>-windows-2025.zip`; Linux/macOS
+  binaries remain `.tar.gz`; no Windows `.tar.gz` in `SHA256SUMS`.
 
 ## Validation
 
-- `python3 -m unittest discover -s tests/build -v`
+- `python3 -m unittest discover -s tests/build -v` (includes
+  `test_release.py` zip/tar contract)
 - CLI help / golden tests that session 19 touched
 - `git diff --check`

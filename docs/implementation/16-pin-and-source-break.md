@@ -120,6 +120,8 @@ Sessions 01–15 complete (current tree).
   hand-edit them. If a docs-gen contract test fails because the table
   changed, fix the test or generator — not a committed man page.
 - Changing doctor/setup scripts unless the pin forces a compile fix.
+- Windows binary archive `.zip` vs `.tar.gz` (session 19). Keep existing
+  packaging tests green; do not switch the Windows artifact here.
 - Parallel writes, unmapped/base write, a `gps` compatibility alias.
 
 ## Expected files

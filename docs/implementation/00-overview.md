@@ -54,6 +54,11 @@ These apply to every session:
   Python helper.
 - **Command table.** Single source of truth for the CLI surface, completions,
   and `umm(1)`.
+- **Windows release archive.** The Windows binary artifact is
+  `umm-<version>-windows-2025.zip`. Linux and macOS binary archives stay
+  `.tar.gz`. Corresponding-source tarballs and `umm-<version>-src.tar.gz`
+  stay tarballs. Session 19 lands the format change; do not ship a Windows
+  `.tar.gz`.
 - **v1 non-goals** (concept §6 and §2.6): no GUI, watch mode, database, asset
   management, thumbnailing, transcoding, image processing, long-running
   daemon, or package-manager publication of umm itself.
@@ -119,7 +124,7 @@ Do not delete these files until a human consolidates them.
 | 16 | [Pin and source-break migration](16-pin-and-source-break.md) | 6 Align | 01–15 | not started |
 | 17 | [Cast and `--report-casts`](17-cast.md) | 7 New APIs | 16 | not started |
 | 18 | [Map (`umm::describe`)](18-map.md) | 7 New APIs | 16 | not started |
-| 19 | [Contract docs and completions](19-docs-and-contract.md) | 8 Contract | 16–18 | not started |
+| 19 | [Contract docs, completions, Windows zip](19-docs-and-contract.md) | 8 Contract | 16–18 | not started |
 
 When a session is finished, set its Progress to **complete** in this table
 (values: `not started`, `in progress`, `complete`).
@@ -156,7 +161,7 @@ rows from that historical map, and do not use it as the 0.1.2 assignment.
 | §3.1 FetchContent pin, `libumm.env`, static link | 16 |
 | §3.2 `find_package` / `UMM_CLI_USE_SYSTEM_LIBUMM` | 02, 03 (historical), 16 (pin still works) |
 | §3.3 version and standards reporting | 16 (CLI 0.2.0) |
-| §4.1 Exiv2-in, GPL-3.0 binary conveyance | 16 (corresponding-source pin copy) |
+| §4.1 Exiv2-in, GPL-3.0 binary conveyance | 16 (corresponding-source pin copy), 19 (Windows `.zip` binary archive) |
 | §4.2 ExifTool never bundled; native setup scripts | 11 (historical) |
 | §4.3 degraded modes | 07 / 11 (historical) |
 | §5 skeleton and conventions | 00, 16 |
