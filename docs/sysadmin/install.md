@@ -2,11 +2,12 @@
 
 ## Release binary
 
-GitHub Releases attach per-OS archives `umm-<version>-<os>.tar.gz` for
-`ubuntu-24.04`, `windows-2025`, and `macos-15`. Each archive includes the
-static `umm` CLI, bash/zsh/fish completions, `umm(1)`, `LICENSE`,
+GitHub Releases attach per-OS archives for `ubuntu-24.04` (`.tar.gz`),
+`windows-2025` (`.zip`), and `macos-15` (`.tar.gz`). Each archive includes
+the static `umm` CLI, bash/zsh/fish completions, `umm(1)`, `LICENSE`,
 `NOTICE.md`, `THIRD-PARTY-NOTICES.md`, `licenses/`, `install/` ExifTool
-setup scripts (not ExifTool itself), and `README.md`.
+setup scripts (not ExifTool itself), and `README.md`. Corresponding-source
+tarballs and `umm-<version>-src.tar.gz` stay `.tar.gz`.
 
 Verify checksums with `SHA256SUMS` on the release. Tag procedure and asset
 names: [release checklist](../release-checklist.md).

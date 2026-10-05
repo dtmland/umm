@@ -39,7 +39,7 @@ Typical sequence:
 2. Confirm `THIRD-PARTY-NOTICES.md` / `tools/build/corresponding-source.json`
    still match the pinned libumm (`tools/build/libumm.env`).
 3. Tag `vX.Y.Z` matching the CMake project version exactly (example: version
-   `0.1.1` → `v0.1.1`) and push the tag. The release workflow fails if they
+   `0.2.0` → `v0.2.0`) and push the tag. The release workflow fails if they
    disagree. Do not use `*-latest` runners.
 4. A `workflow_dispatch` run is a **dry-run**: it builds artifacts and
    `SHA256SUMS` but does **not** create a GitHub release.
@@ -48,11 +48,12 @@ Typical sequence:
 
 The draft release (or the dry-run `release-dist` artifact) must contain:
 
-- Per-OS binary archives `umm-<version>-<os>.tar.gz` for `ubuntu-24.04`,
-  `windows-2025`, and `macos-15`. Each archive includes the static `umm`
-  CLI, bash/zsh/fish completions, `umm(1)`, `LICENSE`, `NOTICE.md`,
-  `THIRD-PARTY-NOTICES.md`, `licenses/`, `install/` ExifTool setup scripts
-  (not ExifTool itself), and `README.md`.
+- Per-OS binary archives: `umm-<version>-ubuntu-24.04.tar.gz`,
+  `umm-<version>-windows-2025.zip`, and `umm-<version>-macos-15.tar.gz`.
+  Each archive includes the static `umm` CLI, bash/zsh/fish completions,
+  `umm(1)`, `LICENSE`, `NOTICE.md`, `THIRD-PARTY-NOTICES.md`, `licenses/`,
+  `install/` ExifTool setup scripts (not ExifTool itself), and `README.md`.
+  Do not ship a Windows `.tar.gz`.
 - Corresponding-source tarballs for Exiv2, Expat, and zlib (pinned URLs and
   SHA-256 from `tools/build/corresponding-source.json`, copied from the
   pinned libumm).

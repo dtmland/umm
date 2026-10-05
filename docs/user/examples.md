@@ -18,7 +18,7 @@ umm read photo.jpg --sources --json
 
 ```sh
 umm get photo.jpg creator
-umm get photo.jpg creator keywords gps
+umm get photo.jpg creator keywords locationCreated
 umm get photo.jpg iptc.photo.creator
 umm get video.mp4 iptc.video.creator --json
 ```
@@ -46,13 +46,15 @@ umm set video.mp4 creator="Jane Doe" dateCreated="2025-01-15T14:30:00Z"
 umm set video.mp4 iptc.video.dateReleased="2025-01-20T00:00:00Z"
 ```
 
-GPS without geotag:
+GPS without geotag (Location struct fields):
 
 ```sh
-umm set photo.jpg gps="40.7128,-74.0060"
-umm set photo.jpg exif.gps.position="40.7128,-74.0060"
-umm set video.mp4 gps="40.7128,-74.0060"
-umm get photo.jpg gps
+umm set photo.jpg locationCreated --json \
+  '[{"gpsLatitude":40.7128,"gpsLongitude":-74.0060}]'
+umm set video.mp4 iptc.video.locationShot --json \
+  '[{"gpsLatitude":40.7128,"gpsLongitude":-74.0060}]'
+umm get photo.jpg locationCreated
+umm get video.mp4 locationCreated
 ```
 
 ## conflicts → merge → sync
@@ -76,9 +78,35 @@ umm geotag --track hike.gpx photo1.jpg photo2.jpg
 umm geotag --track hike.gpx --offset=120 photo.jpg
 umm geotag --track hike.gpx --dry-run photo.jpg
 umm geotag --track video_track.gpx video.mp4
+umm get video.mp4 locationCreated
 ```
 
-`--offset` is minutes for naive capture times, not clock skew.
+`--offset` is minutes for naive capture times, not clock skew. Geotag writes
+Location GPS, not a `gps` accessor.
+
+## cast preview / apply
+
+```sh
+umm cast photo.jpg side
+umm cast photo.jpg side --json
+umm cast photo.jpg side --apply
+umm read photo.jpg --report-casts
+umm cast photo.jpg up --group videoCreated --include-approximate --apply
+```
+
+Default is preview (no write). `--apply` persists through libumm.
+
+## map
+
+```sh
+umm map locationCreated
+umm map locationCreated --json
+umm map iptc.photo.creator
+umm map locationCreated photo.jpg
+umm map locationCreated --layers representations
+```
+
+Operand order is `PROPERTY [FILE]`. `--layers` filters display only.
 
 ## caps
 
@@ -111,14 +139,32 @@ umm read --backend exiv2 photo.jpg
 
 Skip or fail cleanly if the requested backend is unavailable (`umm doctor`).
 
-## unmapped, doctor, setup, version
+## dump views, doctor, setup, version
 
 ```sh
-umm unmapped photo.jpg
-umm unmapped video.mp4
+umm dumpall photo.jpg
+umm dumpunmapped photo.jpg
+umm dumpunmapped video.mp4
 umm doctor
 umm doctor --json
 umm setup exiftool
 umm version
 umm version --json
+```
+
+## Photo workflow
+
+```sh
+umm set photo.jpg creator="Jane" keywords="hiking" dateCreated="2025-01-15T14:30:00Z"
+umm geotag --track hike.gpx photo.jpg
+umm get photo.jpg creator keywords locationCreated
+```
+
+## Video workflow
+
+```sh
+umm set video.mp4 iptc.video.creator --json '{"name":"Director","role":"director"}'
+umm set video.mp4 iptc.video.dateCreated="2025-01-15T14:30:00Z"
+umm geotag --track video_track.gpx video.mp4
+umm get video.mp4 iptc.video.creator iptc.video.dateCreated iptc.video.locationShot
 ```

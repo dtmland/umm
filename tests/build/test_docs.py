@@ -18,6 +18,29 @@ class DocsGenContract(unittest.TestCase):
         self.assertIn("${CMAKE_INSTALL_MANDIR}/man1", CMAKE)
         self.assertIn("umm-generated-docs", CMAKE)
 
+    def test_command_table_emits_012_surface(self):
+        table = (ROOT / "src" / "command_table.cpp").read_text(encoding="utf-8")
+        docs_gen = (ROOT / "tools" / "gen" / "docs_gen.cpp").read_text(encoding="utf-8")
+        property_cpp = (ROOT / "src" / "property.cpp").read_text(encoding="utf-8")
+        for name in (
+            '"dumpall"',
+            '"dumpunmapped"',
+            '"cast"',
+            '"map"',
+            '"report-casts"',
+            '"apply"',
+            '"group"',
+            '"force"',
+            '"include-approximate"',
+            '"layers"',
+        ):
+            self.assertIn(name, table)
+        self.assertNotRegex(table, r'\{\s*"unmapped"')
+        self.assertIn("accessor_names()", docs_gen)
+        self.assertIn('"layers"', docs_gen)
+        self.assertNotRegex(property_cpp, r'\{\s*"gps"')
+        self.assertNotIn("exif.gps.position", property_cpp)
+
     def test_goldens_are_lf(self):
         if not GOLDENS.is_dir():
             return

@@ -3,13 +3,16 @@
 `umm` reads and writes media metadata using libumm's canonical model (IPTC
 Photo, IPTC Video Metadata Hub, EXIF). It does not invent tag names. Point
 property semantics at
-[libumm's user guide](https://github.com/dtmland/libumm/blob/main/docs/user/guide.md);
+[libumm's user guide](https://github.com/dtmland/libumm/blob/v0.1.2/docs/user/guide.md)
+and the
+[property reference](https://github.com/dtmland/libumm/blob/v0.1.2/docs/user/properties/README.md);
 this page is the CLI path from install to a first write.
 
 ## Install
 
-Unpack a GitHub Release archive (`umm-<version>-<os>.tar.gz`) and put the
-`umm` binary on your `PATH`. Archives also contain `umm(1)`, shell
+Unpack a GitHub Release archive (`umm-<version>-ubuntu-24.04.tar.gz`,
+`umm-<version>-windows-2025.zip`, or `umm-<version>-macos-15.tar.gz`) and put
+the `umm` binary on your `PATH`. Archives also contain `umm(1)`, shell
 completions, licenses, and ExifTool *setup scripts* — not ExifTool itself.
 Source is Apache-2.0; binaries that contain Exiv2 are conveyed under
 GPL-3.0.
@@ -65,17 +68,18 @@ umm read photo.jpg --json
 umm get photo.jpg creator --json
 ```
 
-Every `--json` document includes integer `"schema_version"` (currently `1`).
+Every `--json` document includes integer `"schema_version"` (currently `2`).
 See [JSON schema](json-schema.md).
 
 ## Accessors vs full ids
 
 On `get`, `set`, and `rm`, a name is either a **convenience accessor**
-(`creator`, `gps`, `dateCreated`, …) or a **full canonical id**
-(`iptc.photo.creator`, `iptc.video.creator`, `exif.gps.position`). Accessors
-follow the file's media domain: a video sniffed by `umm::read` stores
-`iptc.video.*` under the same short name. Full ids never retarget the other
-domain. `rating` is photo-only. `gps` is always `exif.gps.position`.
+(`creator`, `locationCreated`, `dateCreated`, …) or a **full canonical id**
+(`iptc.photo.creator`, `iptc.video.creator`). Accessors follow the file's
+media domain: a video sniffed by `umm::read` stores `iptc.video.*` under the
+same short name. Full ids never retarget the other domain. There is no `gps`
+accessor and no `exif.gps.position`; camera GPS is Location struct fields
+on `locationCreated` (photo) / `locationShot` (video).
 
 ```sh
 umm set photo.jpg creator="Jane Doe" keywords="nature,landscape" \
@@ -83,7 +87,8 @@ umm set photo.jpg creator="Jane Doe" keywords="nature,landscape" \
 umm set video.mp4 creator="Jane Doe"
 umm get photo.jpg iptc.photo.creator
 umm get video.mp4 iptc.video.creator
-umm set photo.jpg gps="40.7128,-74.0060"
+umm set photo.jpg locationCreated --json \
+  '[{"gpsLatitude":40.7128,"gpsLongitude":-74.0060}]'
 umm set photo.jpg locationCreated --json '{"name":"NYC","countryCode":"US"}'
 ```
 
@@ -91,11 +96,12 @@ The CLI features every accessor libumm ships. The mapping is not copied here;
 see libumm **Cross-media accessors**. Discover what is on a file with
 `umm read FILE --json`. `umm get` is for known names.
 
-## Unmapped tags
+## Base views (read-only)
 
-`umm unmapped FILE` dumps backend tags libumm did not map into the canonical
-model (family, key, value). That display is read-only: there is no unmapped
-write path and no ad-hoc tag names on `set` / `rm`.
+`umm dumpall FILE` dumps every base entry libumm saw (family, key, value).
+`umm dumpunmapped FILE` dumps base entries that no canonical property
+consumed. Both are read-only: there is no base-key write path and no ad-hoc
+tag names on `set` / `rm`. There is no `umm unmapped` command.
 
 ## Non-goals (v1)
 
@@ -104,6 +110,7 @@ write path and no ad-hoc tag names on `set` / `rm`.
 - No long-running daemon.
 - No package-manager publication of umm itself.
 - No metadata semantics outside libumm's registry.
+- No writing new base keys.
 
 ## Next
 

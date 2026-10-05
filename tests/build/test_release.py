@@ -10,6 +10,7 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -128,6 +129,9 @@ class TestReleaseWorkflow(unittest.TestCase):
         self.assertIn("package_release.py", text)
         self.assertIn("generate_release_notes.py", text)
         self.assertIn("umm-${VERSION}-src.tar.gz", text)
+        self.assertIn("umm-.*windows-2025\\.zip$", text)
+        self.assertIn("! grep -E 'umm-.*windows-2025\\.tar\\.gz$'", text)
+        self.assertIn("umm-*.zip", text)
         self.assertIn("gh release create", text)
         self.assertIn(
             "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')",
@@ -184,6 +188,8 @@ class TestReleaseWorkflow(unittest.TestCase):
         self.assertIn("project(umm VERSION", checklist)
         self.assertIn("libumm.env", checklist)
         self.assertIn("UMM_CLI_VERSION", checklist)
+        self.assertIn("windows-2025.zip", checklist)
+        self.assertNotRegex(checklist, r"umm-<version>-windows-2025\.tar\.gz")
 
 
 class TestNoticesAndPins(unittest.TestCase):
@@ -252,95 +258,117 @@ class TestReleaseTools(unittest.TestCase):
         pins = {item["id"]: item for item in manifest["components"]}
         self.assertIn(pins["exiv2"]["version"], text)
 
+    REQUIRED_ARCHIVE_PATHS = (
+        "bin/umm",
+        "share/man/man1/umm.1",
+        "share/bash-completion/completions/umm",
+        "share/zsh/site-functions/_umm",
+        "share/fish/vendor_completions.d/umm.fish",
+        "share/doc/umm/LICENSE",
+        "share/doc/umm/NOTICE.md",
+        "share/doc/umm/THIRD-PARTY-NOTICES.md",
+        "share/doc/umm/licenses/GPL-3.0.txt",
+        "README.md",
+        "install/exiftool.sh",
+        "install/exiftool.ps1",
+        "install/exiftool.bat",
+        "MANIFEST.txt",
+    )
+
+    def _write_install_prefix(self, prefix: Path) -> None:
+        (prefix / "bin").mkdir(parents=True)
+        (prefix / "share" / "man" / "man1").mkdir(parents=True)
+        (prefix / "share" / "bash-completion" / "completions").mkdir(parents=True)
+        (prefix / "share" / "zsh" / "site-functions").mkdir(parents=True)
+        (prefix / "share" / "fish" / "vendor_completions.d").mkdir(parents=True)
+        (prefix / "share" / "doc" / "umm" / "licenses").mkdir(parents=True)
+        (prefix / "bin" / "umm").write_bytes(b"bin")
+        (prefix / "share" / "man" / "man1" / "umm.1").write_text(".TH\n", encoding="utf-8")
+        (prefix / "share" / "bash-completion" / "completions" / "umm").write_text(
+            "# bash\n", encoding="utf-8"
+        )
+        (prefix / "share" / "zsh" / "site-functions" / "_umm").write_text(
+            "# zsh\n", encoding="utf-8"
+        )
+        (prefix / "share" / "fish" / "vendor_completions.d" / "umm.fish").write_text(
+            "# fish\n", encoding="utf-8"
+        )
+        (prefix / "share" / "doc" / "umm" / "LICENSE").write_text("L\n", encoding="utf-8")
+        (prefix / "share" / "doc" / "umm" / "NOTICE.md").write_text("N\n", encoding="utf-8")
+        (prefix / "share" / "doc" / "umm" / "THIRD-PARTY-NOTICES.md").write_text(
+            "T\n", encoding="utf-8"
+        )
+        (prefix / "share" / "doc" / "umm" / "licenses" / "GPL-3.0.txt").write_text(
+            "GPL\n", encoding="utf-8"
+        )
+
+    def _package(self, prefix: Path, out: Path, os_id: str) -> subprocess.CompletedProcess[str]:
+        return run_tool(
+            [
+                str(PACKAGE_RELEASE),
+                "package",
+                "--install-prefix",
+                str(prefix),
+                "--source-root",
+                str(REPO_ROOT),
+                "--version",
+                PACKAGE_TEST_VERSION,
+                "--os",
+                os_id,
+                "--output-dir",
+                str(out),
+            ]
+        )
+
+    def _assert_archive_members(self, names: list[str]) -> None:
+        joined = "\n".join(names)
+        root = f"umm-{PACKAGE_TEST_VERSION}"
+        for rel in self.REQUIRED_ARCHIVE_PATHS:
+            self.assertIn(f"{root}/{rel}", joined)
+        self.assertNotIn("exiftool.exe", joined)
+        self.assertNotRegex(joined, r"(?i)Image-ExifTool")
+
     def test_package_archive_contains_required_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             prefix = root / "prefix"
-            (prefix / "bin").mkdir(parents=True)
-            (prefix / "share" / "man" / "man1").mkdir(parents=True)
-            (prefix / "share" / "bash-completion" / "completions").mkdir(parents=True)
-            (prefix / "share" / "zsh" / "site-functions").mkdir(parents=True)
-            (prefix / "share" / "fish" / "vendor_completions.d").mkdir(parents=True)
-            (prefix / "share" / "doc" / "umm" / "licenses").mkdir(parents=True)
-            (prefix / "bin" / "umm").write_bytes(b"bin")
-            (prefix / "share" / "man" / "man1" / "umm.1").write_text(".TH\n", encoding="utf-8")
-            (prefix / "share" / "bash-completion" / "completions" / "umm").write_text(
-                "# bash\n", encoding="utf-8"
-            )
-            (prefix / "share" / "zsh" / "site-functions" / "_umm").write_text(
-                "# zsh\n", encoding="utf-8"
-            )
-            (prefix / "share" / "fish" / "vendor_completions.d" / "umm.fish").write_text(
-                "# fish\n", encoding="utf-8"
-            )
-            (prefix / "share" / "doc" / "umm" / "LICENSE").write_text("L\n", encoding="utf-8")
-            (prefix / "share" / "doc" / "umm" / "NOTICE.md").write_text("N\n", encoding="utf-8")
-            (prefix / "share" / "doc" / "umm" / "THIRD-PARTY-NOTICES.md").write_text(
-                "T\n", encoding="utf-8"
-            )
-            (prefix / "share" / "doc" / "umm" / "licenses" / "GPL-3.0.txt").write_text(
-                "GPL\n", encoding="utf-8"
-            )
+            self._write_install_prefix(prefix)
             out = root / "out"
-            result = run_tool(
-                [
-                    str(PACKAGE_RELEASE),
-                    "package",
-                    "--install-prefix",
-                    str(prefix),
-                    "--source-root",
-                    str(REPO_ROOT),
-                    "--version",
-                    PACKAGE_TEST_VERSION,
-                    "--os",
-                    "ubuntu-24.04",
-                    "--output-dir",
-                    str(out),
-                ]
-            )
+            result = self._package(prefix, out, "ubuntu-24.04")
             self.assertEqual(result.returncode, 0, result.stderr)
             archive = out / f"umm-{PACKAGE_TEST_VERSION}-ubuntu-24.04.tar.gz"
             self.assertTrue(archive.is_file())
             with tarfile.open(archive, "r:gz") as tar:
                 names = tar.getnames()
-            joined = "\n".join(names)
-            prefix = f"umm-{PACKAGE_TEST_VERSION}"
-            for needle in (
-                f"{prefix}/bin/umm",
-                f"{prefix}/share/man/man1/umm.1",
-                f"{prefix}/share/bash-completion/completions/umm",
-                f"{prefix}/share/zsh/site-functions/_umm",
-                f"{prefix}/share/fish/vendor_completions.d/umm.fish",
-                f"{prefix}/share/doc/umm/LICENSE",
-                f"{prefix}/share/doc/umm/NOTICE.md",
-                f"{prefix}/share/doc/umm/THIRD-PARTY-NOTICES.md",
-                f"{prefix}/share/doc/umm/licenses/GPL-3.0.txt",
-                f"{prefix}/README.md",
-                f"{prefix}/install/exiftool.sh",
-                f"{prefix}/install/exiftool.ps1",
-                f"{prefix}/install/exiftool.bat",
-                f"{prefix}/MANIFEST.txt",
-            ):
-                self.assertIn(needle, joined)
-            self.assertNotIn("exiftool.exe", joined)
-            self.assertNotRegex(joined, r"(?i)Image-ExifTool")
-            missing = run_tool(
-                [
-                    str(PACKAGE_RELEASE),
-                    "package",
-                    "--install-prefix",
-                    str(root / "empty"),
-                    "--source-root",
-                    str(REPO_ROOT),
-                    "--version",
-                    PACKAGE_TEST_VERSION,
-                    "--os",
-                    "ubuntu-24.04",
-                    "--output-dir",
-                    str(out),
-                ]
-            )
+            self._assert_archive_members(names)
+            missing = self._package(root / "empty", out, "ubuntu-24.04")
             self.assertNotEqual(missing.returncode, 0)
+
+    def test_windows_archive_is_zip_unix_is_tar_gz(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prefix = root / "prefix"
+            self._write_install_prefix(prefix)
+            out = root / "out"
+            cases = (
+                ("windows-2025", f"umm-{PACKAGE_TEST_VERSION}-windows-2025.zip", True),
+                ("ubuntu-24.04", f"umm-{PACKAGE_TEST_VERSION}-ubuntu-24.04.tar.gz", False),
+                ("macos-15", f"umm-{PACKAGE_TEST_VERSION}-macos-15.tar.gz", False),
+            )
+            for os_id, name, is_zip in cases:
+                result = self._package(prefix, out, os_id)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                archive = out / name
+                self.assertTrue(archive.is_file(), name)
+                if is_zip:
+                    self.assertFalse(
+                        (out / f"umm-{PACKAGE_TEST_VERSION}-windows-2025.tar.gz").exists()
+                    )
+                    with zipfile.ZipFile(archive) as zf:
+                        self._assert_archive_members(zf.namelist())
+                else:
+                    with tarfile.open(archive, "r:gz") as tar:
+                        self._assert_archive_members(tar.getnames())
 
     def test_sha256sums_covers_every_asset(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

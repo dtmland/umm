@@ -18,7 +18,9 @@ People running `umm`:
 - [JSON schema](user/json-schema.md) — `--json` and `schema_version`
 
 Canonical property semantics live in
-[libumm user docs](https://github.com/dtmland/libumm/blob/main/docs/user/guide.md)
+[libumm v0.1.2 user docs](https://github.com/dtmland/libumm/blob/v0.1.2/docs/user/guide.md)
+and the
+[property reference](https://github.com/dtmland/libumm/blob/v0.1.2/docs/user/properties/README.md)
 (see **Cross-media accessors** for the full accessor table).
 
 ## Sysadmin
