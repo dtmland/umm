@@ -1449,7 +1449,7 @@ static void test_map() {
   CHECK(run_cli({"map", "--layers", "nope", "creator"}, nullptr, &err) == to_int(ExitCode::usage));
   CHECK(err.find("layer") != std::string::npos);
   CHECK(run_cli({"map", "creator", "a.jpg", "b.jpg"}, nullptr, &err) == to_int(ExitCode::usage));
-  CHECK(run_cli({"map", "photo.jpg", "creator"}, nullptr, &err) == to_int(ExitCode::semantics));
+  CHECK(run_cli({"map", "photo.jpg"}, nullptr, &err) == to_int(ExitCode::semantics));
 
   CHECK(run_cli({"map", "--json", "locationCreated"}, &out, &err) == 0);
   CHECK(out.find("\"schema_version\": 2") != std::string::npos);
@@ -1507,6 +1507,7 @@ static void test_map() {
   CHECK(run_cli({"map", "iptc.photo.creator", jpg.string()}, &out) == 0);
   CHECK(out.find("Jane Doe") != std::string::npos);
   CHECK(read_bytes(jpg) == before);
+  CHECK(run_cli({"map", jpg.string(), "creator"}, nullptr, &err) == to_int(ExitCode::io));
   CHECK(run_cli({"map", "creator", "/no/such/map.jpg"}, nullptr, &err) == to_int(ExitCode::io));
   fs::remove_all(dir);
 }

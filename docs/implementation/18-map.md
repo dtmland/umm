@@ -1,6 +1,10 @@
 # Session 18 — Map (`umm::describe`)
 
-Status: **in progress**
+Status: **complete**
+
+Landed: `umm map PROPERTY [FILE]` calls `umm::describe` (registry-only or file
+mode). `--layers` filters display only. JSON uses libumm field names plus
+`schema_version` and `command`. Operand order is property first.
 
 ## Goal
 

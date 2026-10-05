@@ -1718,18 +1718,14 @@ ExitCode run_map(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
     filter = *parsed;
   }
   const std::string& property = args.operands[0];
-  umm::Result<umm::PropertyMap> r;
-  if (args.operands.size() == 2) {
+  auto describe_map = [&]() -> umm::Result<umm::PropertyMap> {
+    if (args.operands.size() != 2) return umm::describe(property);
     fs::path file = args.operands[1];
     umm::Result<void> pre = check_file(file);
-    if (!pre.ok()) {
-      err << "umm map: " << pre.error().message << "\n";
-      return exit_code_for(pre.error().code);
-    }
-    r = umm::describe(property, file);
-  } else {
-    r = umm::describe(property);
-  }
+    if (!pre.ok()) return pre.error();
+    return umm::describe(property, file);
+  };
+  umm::Result<umm::PropertyMap> r = describe_map();
   if (!r.ok()) {
     err << "umm map: " << r.error().message << "\n";
     return exit_code_for(r.error().code);
