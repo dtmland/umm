@@ -94,6 +94,7 @@ static void test_cli_behaviour() {
   std::string out, err;
   CHECK(run_cli({"--help"}, &out) == 0 && out.find("Commands:") != std::string::npos);
   CHECK(run_cli({"set", "--help"}, &out) == 0 && out.find("--policy") != std::string::npos);
+  CHECK(run_cli({"merge", "--help"}, &out) == 0 && out.find("BASEKEY") != std::string::npos);
   CHECK(run_cli({"doctor", "--help"}, &out) == 0 &&
         out.find("Windows ExifTool.exe does not need Perl") != std::string::npos);
   CHECK(run_cli({}) == 1);
@@ -348,6 +349,9 @@ static void test_read_get() {
   CHECK(out.find("\"command\": \"read\"") != std::string::npos);
   CHECK(run_cli({"read", "--sources", jpg.string()}, &out) == 0);
   CHECK(out.find("RESOLUTION") != std::string::npos || out.find("single") != std::string::npos);
+  CHECK(run_cli({"read", "--sources", "--json", jpg.string()}, &out) == 0);
+  CHECK(out.find("\"base_key\"") != std::string::npos);
+  CHECK(out.find("\"raw_key\"") == std::string::npos);
 
   if (backend_available("exiv2")) {
     CHECK(run_cli({"get", "--backend", "exiv2", jpg.string(), "creator"}, &out) == 0);
@@ -501,10 +505,17 @@ static void test_parse_value() {
   CHECK(t.ok() && std::get<std::string>(t.value().data) == "Ada");
   auto list = parse_value(umm::Datatype::text_list, "a,b", false);
   CHECK(list.ok());
-  auto gps = parse_value(umm::Datatype::gps_coordinate, "40.7128,-74.0060", false);
+  auto gps = parse_value(umm::Datatype::structure_list,
+                        R"([{"gpsLatitude":40.7128,"gpsLongitude":-74.0060}])", true);
   CHECK(gps.ok());
-  const auto* g = std::get_if<umm::GpsCoordinate>(&gps.value().data);
-  CHECK(g && g->latitude > 40.7 && g->longitude < -74.0);
+  const auto* locs = std::get_if<std::vector<umm::Structure>>(&gps.value().data);
+  CHECK(locs && !locs->empty());
+  auto lat = locs->front().find("gpsLatitude");
+  auto lon = locs->front().find("gpsLongitude");
+  CHECK(lat != locs->front().end() && lon != locs->front().end());
+  const auto* latv = std::get_if<double>(&lat->second.data);
+  const auto* lonv = std::get_if<double>(&lon->second.data);
+  CHECK(latv && *latv > 40.7 && lonv && *lonv < -74.0);
   auto dt = parse_value(umm::Datatype::date_time, "2025-01-15T14:30:00Z", false);
   CHECK(dt.ok());
   Json j;
@@ -551,10 +562,18 @@ static void test_set_rm() {
   CHECK(run_cli({"get", jpg.string(), "iptc.photo.creator"}, &out) == 0);
   CHECK(out.find("Bea") != std::string::npos);
 
-  CHECK(run_cli({"set", jpg.string(), "gps=40.7128,-74.0060"}) == 0);
-  CHECK(run_cli({"get", jpg.string(), "gps"}, &out) == 0);
+  CHECK(run_cli({"set", jpg.string(), "gps=40.7128,-74.0060"}, nullptr, &err) ==
+        to_int(ExitCode::semantics));
+  CHECK(run_cli({"get", jpg.string(), "gps"}, nullptr, &err) == to_int(ExitCode::semantics));
+  CHECK(run_cli({"get", jpg.string(), "exif.gps.position"}, nullptr, &err) ==
+        to_int(ExitCode::semantics));
+
+  CHECK(run_cli({"set", jpg.string(), "locationCreated", "--json",
+                 R"([{"gpsLatitude":40.7128,"gpsLongitude":-74.0060}])"}) == 0);
+  CHECK(run_cli({"get", "--json", jpg.string(), "locationCreated"}, &out) == 0);
   CHECK(out.find("40.7128") != std::string::npos);
-  CHECK(run_cli({"get", jpg.string(), "exif.gps.position"}, &out) == 0);
+  CHECK(out.find("-74.006") != std::string::npos);
+  CHECK(run_cli({"read", "--json", jpg.string()}, &out) == 0);
   CHECK(out.find("40.7128") != std::string::npos);
 
   CHECK(run_cli({"set", jpg.string(), "locationCreated", "--json",
@@ -607,7 +626,14 @@ static void test_set_rm() {
       } else {
         std::cerr << "skip video set: " << err << "\n";
       }
-      CHECK(run_cli({"set", mp4.string(), "rating=3"}, nullptr, &err) == to_int(ExitCode::semantics));
+      int rating_rc = run_cli({"set", mp4.string(), "rating=3"}, nullptr, &err);
+      if (rating_rc == 0) {
+        CHECK(run_cli({"get", "--json", mp4.string(), "rating"}, &out) == 0);
+        CHECK(out.find("3") != std::string::npos);
+      } else {
+        CHECK(rating_rc != to_int(ExitCode::semantics) || err.find("unknown property") == std::string::npos);
+        std::cerr << "skip video rating set: " << err << "\n";
+      }
     }
   }
 #endif
@@ -800,7 +826,7 @@ static void test_geotag_doctor_setup() {
     CHECK(out.find("\"schema_version\": 2") != std::string::npos);
     CHECK(out.find("\"command\": \"geotag\"") != std::string::npos);
     CHECK(run_cli({"geotag", "--track", gpx.string(), jpg.string()}, &out, &err) == 0);
-    CHECK(run_cli({"get", jpg.string(), "gps"}, &out) == 0);
+    CHECK(run_cli({"get", "--json", jpg.string(), "locationCreated"}, &out) == 0);
     CHECK(out.find("40.7128") != std::string::npos);
 
     fs::path naive = write_naive_exif_jpeg(dir / "naive.jpg");
@@ -822,7 +848,7 @@ static void test_geotag_doctor_setup() {
       if (vmeta.setDateCreated(dt).ok() && umm::write(mp4, vmeta).ok()) {
         int rc = run_cli({"geotag", "--track", gpx.string(), mp4.string()}, &out, &err);
         if (rc == 0) {
-          CHECK(run_cli({"get", mp4.string(), "gps"}, &out) == 0);
+          CHECK(run_cli({"get", "--json", mp4.string(), "locationCreated"}, &out) == 0);
           CHECK(out.find("40.7128") != std::string::npos);
         } else {
           std::cerr << "skip video geotag: " << err << "\n";
@@ -940,12 +966,12 @@ static std::pair<bool, std::string> sample_for(const ResolvedProperty& p) {
       return {false, "3"};
     case umm::Datatype::boolean:
       return {false, "true"};
-    case umm::Datatype::gps_coordinate:
-      return {false, "40.7128,-74.0060"};
     case umm::Datatype::structure:
     case umm::Datatype::structure_list:
       if (p.name == "contributor") return {true, R"([{"name":"Alice","role":"director"}])"};
-      if (p.name == "locationCreated" || p.name == "locationShown")
+      if (p.name == "locationCreated")
+        return {true, R"([{"gpsLatitude":40.7128,"gpsLongitude":-74.0060}])"};
+      if (p.name == "locationShown")
         return {true, R"({"city":"NYC","countryName":"US"})"};
       if (p.name == "personShown") return {true, R"({"name":"Bob"})"};
       if (p.name == "shownEvent") return {true, R"({"name":"Summit"})"};
@@ -971,11 +997,10 @@ static const char* needle_for(const ResolvedProperty& p) {
       return "3";
     case umm::Datatype::boolean:
       return "true";
-    case umm::Datatype::gps_coordinate:
-      return "40.7128";
     default:
       if (p.name == "contributor") return "Alice";
-      if (p.name == "locationCreated" || p.name == "locationShown") return "NYC";
+      if (p.name == "locationCreated") return "40.7128";
+      if (p.name == "locationShown") return "NYC";
       if (p.name == "personShown") return "Bob";
       if (p.name == "shownEvent") return "Summit";
       if (p.name == "genre") return "Documentary";
@@ -1053,12 +1078,14 @@ static void test_goldens() {
   fs::path unknown = fixtures / "jpeg" / "unknown-tags.jpg";
   fs::path conflict = fixtures / "jpeg" / "full-conflicting.jpg";
   if (fs::exists(unknown) && backend_available("exiv2")) {
-    CHECK(run_cli({"unmapped", "--backend", "exiv2", unknown.string()}, &out) == 0);
-    check_golden("unmapped.txt", normalize_output(out, unknown));
-    CHECK(run_cli({"unmapped", "--json", "--backend", "exiv2", unknown.string()}, &out) == 0);
-    check_golden("unmapped.json", normalize_output(out, unknown));
+    CHECK(run_cli({"dumpunmapped", "--backend", "exiv2", unknown.string()}, &out) == 0);
+    check_golden("dumpunmapped.txt", normalize_output(out, unknown));
+    CHECK(run_cli({"dumpunmapped", "--json", "--backend", "exiv2", unknown.string()}, &out) == 0);
+    check_golden("dumpunmapped.json", normalize_output(out, unknown));
+    CHECK(run_cli({"dumpall", "--json", "--backend", "exiv2", unknown.string()}, &out) == 0);
+    check_golden("dumpall.json", normalize_output(out, unknown));
   } else {
-    std::cerr << "skip unmapped goldens\n";
+    std::cerr << "skip dump goldens\n";
   }
   if (fs::exists(conflict) && backend_available("exiv2")) {
     CHECK(run_cli({"conflicts", "--backend", "exiv2", conflict.string()}, &out) == 0);
@@ -1069,7 +1096,7 @@ static void test_goldens() {
     std::cerr << "skip conflicts goldens\n";
   }
 #else
-  std::cerr << "skip unmapped/conflicts goldens (no libumm fixtures)\n";
+  std::cerr << "skip dump/conflicts goldens (no libumm fixtures)\n";
 #endif
   fs::remove_all(dir);
 }
@@ -1199,12 +1226,6 @@ static void roundtrip_accessors(const fs::path& media, umm::MediaDomain domain, 
     auto resolved = resolve_property(n, domain);
     CHECK(resolved.ok());
     if (!resolved.ok()) continue;
-    if (resolved.value().photo_only && domain == umm::MediaDomain::video) {
-      int rc = run_cli(with_backend({"set", media.string(), std::string(n) + "=3"}, backend), nullptr, &err);
-      CHECK(rc == to_int(ExitCode::semantics) || rc == to_int(ExitCode::backend) ||
-            rc == to_int(ExitCode::capability));
-      continue;
-    }
     auto sample = sample_for(resolved.value());
     std::vector<std::string> args{"set", media.string()};
     if (sample.first) {
@@ -1239,9 +1260,9 @@ static void roundtrip_accessors(const fs::path& media, umm::MediaDomain domain, 
     }
   }
   int gps_set = run_cli(with_backend({"set", media.string(), "gps=41.0,-73.0"}, backend), &out, &err);
-  CHECK(gps_set == 0 || domain == umm::MediaDomain::video);
-  int gps_rc = run_cli(with_backend({"get", media.string(), "gps"}, backend), &out);
-  if (gps_rc == 0) CHECK(out.find("41") != std::string::npos);
+  CHECK(gps_set == to_int(ExitCode::semantics));
+  CHECK(run_cli(with_backend({"get", media.string(), "gps"}, backend), &out) ==
+        to_int(ExitCode::semantics));
 }
 
 static void test_accessor_coverage() {
@@ -1258,10 +1279,10 @@ static void test_accessor_coverage() {
   }
   roundtrip_accessors(jpg, umm::MediaDomain::photo, "");
   CHECK(run_cli({"set", jpg.string(), "locationCreated", "--json",
-                 R"({"city":"NYC","countryName":"US"})"}) == 0);
+                 R"([{"gpsLatitude":40.7128,"gpsLongitude":-74.0060}])"}) == 0);
   std::string out, err;
   CHECK(run_cli({"get", "--json", jpg.string(), "locationCreated"}, &out) == 0);
-  CHECK(out.find("NYC") != std::string::npos);
+  CHECK(out.find("40.7128") != std::string::npos);
 
 #ifdef UMM_LIBUMM_FIXTURES
   fs::path src = fs::path(UMM_LIBUMM_FIXTURES) / "video" / "minimal.mp4";

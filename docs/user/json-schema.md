@@ -1,12 +1,12 @@
 # JSON output
 
 Every `--json` invocation prints **one** document with integer
-`"schema_version"` (currently `1`). Batch invocations use a single top-level
+`"schema_version"` (currently `2`). Batch invocations use a single top-level
 object with a `files` array (one entry per file, in operand order).
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "command": "read",
   "files": [
     { "path": "a.jpg", "ok": true,
@@ -18,7 +18,7 @@ object with a `files` array (one entry per file, in operand order).
 
 - `value` is the full JSON form; struct-valued properties are objects or
   arrays. The human table prints a compact summary instead.
-- `umm read --sources` adds `resolution`, `sources` (`raw_key`, `backend`,
+- `umm read --sources` adds `resolution`, `sources` (`base_key`, `backend`,
   `container`), and `preferred_source` when set, on each property object.
 - `umm get` uses the requested name as `id` (accessor or full property id).
   When a requested property is absent, `ok` is false, `error` lists the
@@ -35,8 +35,10 @@ object with a `files` array (one entry per file, in operand order).
 - `--dry-run --json` on `geotag` adds per-file `gps` (the `GpsCoordinate`
   that would be written) and `match` (`exact` / `interpolated` / `nearest`).
 - Property ids on `read` are libumm canonical ids, never backend tag names.
-- `umm unmapped` adds `unmapped`: `[{family, key, value}]` per file (not
-  canonical property ids).
+- `umm dumpall` and `umm dumpunmapped` add `entries`:
+  `[{family, key, value, cast_source}]` per file (base keys, not canonical
+  property ids). `cast_source` is true when a canonical property consumed
+  the entry as a cast source. There is no `umm unmapped` command.
 - `umm conflicts` adds `conflicts`: `[{property_id, resolution,
   preferred_source, candidates: [{value, family, primary_key, sources}]}]`.
 - `umm caps` adds `capabilities`: `{file_type, preferred_backend,
@@ -52,8 +54,10 @@ object with a `files` array (one entry per file, in operand order).
 - `umm merge --json` may include `report` after a write, or `merged: true` on
   `--dry-run`.
 
-GPS objects use `latitude`, `longitude`, and optional `altitude_meters` /
-`gps_time`. Date-times are ISO-8601 strings.
+Geotag `--dry-run` GPS objects use `latitude`, `longitude`, and optional
+`altitude_meters` / `gps_time` (`TrackMatch::position`). Location GPS on
+`locationCreated` / `locationShot` uses IPTC field names (`gpsLatitude`,
+`gpsLongitude`, …). Date-times are ISO-8601 strings.
 
 ## Versioning
 

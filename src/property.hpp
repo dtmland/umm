@@ -19,7 +19,7 @@ struct ResolvedProperty {
   std::string property_id;        // registry id when addressed by full id; empty for accessors
   AccessorGetter getter{nullptr}; // libumm's public Metadata getter when addressed by accessor
   umm::Datatype datatype{umm::Datatype::text};
-  bool is_accessor() const { return getter != nullptr };
+  bool is_accessor() const { return getter != nullptr; }
 };
 
 // Resolves a CLI name:
