@@ -1,59 +1,11 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "command": "conflicts",
   "files": [
     {
       "path": "FILE",
       "ok": true,
       "conflicts": [
-        {
-          "property_id": "iptc.photo.dateCreated",
-          "resolution": "reconciled",
-          "preferred_source": "Xmp.photoshop.DateCreated",
-          "candidates": [
-            {
-              "value": "2020-03-03T00:00:00",
-              "family": "xmp",
-              "primary_key": "Xmp.photoshop.DateCreated",
-              "sources": [
-                {
-                  "raw_key": "Xmp.photoshop.DateCreated",
-                  "backend": "exiv2",
-                  "container": "embedded"
-                }
-              ]
-            },
-            {
-              "value": "2020-01-01T00:00:00",
-              "family": "exif",
-              "primary_key": "Exif.Photo.DateTimeOriginal",
-              "sources": [
-                {
-                  "raw_key": "Exif.Photo.DateTimeOriginal",
-                  "backend": "exiv2",
-                  "container": "embedded"
-                }
-              ]
-            },
-            {
-              "value": "2020-02-02T00:00:00Z",
-              "family": "iim",
-              "primary_key": "Iptc.Application2.DateCreated",
-              "sources": [
-                {
-                  "raw_key": "Iptc.Application2.DateCreated",
-                  "backend": "exiv2",
-                  "container": "embedded"
-                },
-                {
-                  "raw_key": "Iptc.Application2.TimeCreated",
-                  "backend": "exiv2",
-                  "container": "embedded"
-                }
-              ]
-            }
-          ]
-        },
         {
           "property_id": "iptc.photo.creator",
           "resolution": "reconciled",
@@ -67,7 +19,7 @@
               "primary_key": "Xmp.dc.creator",
               "sources": [
                 {
-                  "raw_key": "Xmp.dc.creator",
+                  "base_key": "Xmp.dc.creator",
                   "backend": "exiv2",
                   "container": "embedded"
                 }
@@ -81,7 +33,7 @@
               "primary_key": "Iptc.Application2.Byline",
               "sources": [
                 {
-                  "raw_key": "Iptc.Application2.Byline",
+                  "base_key": "Iptc.Application2.Byline",
                   "backend": "exiv2",
                   "container": "embedded"
                 }
@@ -95,7 +47,55 @@
               "primary_key": "Exif.Image.Artist",
               "sources": [
                 {
-                  "raw_key": "Exif.Image.Artist",
+                  "base_key": "Exif.Image.Artist",
+                  "backend": "exiv2",
+                  "container": "embedded"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "property_id": "iptc.photo.dateCreated",
+          "resolution": "reconciled",
+          "preferred_source": "Xmp.photoshop.DateCreated",
+          "candidates": [
+            {
+              "value": "2020-03-03T00:00:00",
+              "family": "xmp",
+              "primary_key": "Xmp.photoshop.DateCreated",
+              "sources": [
+                {
+                  "base_key": "Xmp.photoshop.DateCreated",
+                  "backend": "exiv2",
+                  "container": "embedded"
+                }
+              ]
+            },
+            {
+              "value": "2020-01-01T00:00:00",
+              "family": "exif",
+              "primary_key": "Exif.Photo.DateTimeOriginal",
+              "sources": [
+                {
+                  "base_key": "Exif.Photo.DateTimeOriginal",
+                  "backend": "exiv2",
+                  "container": "embedded"
+                }
+              ]
+            },
+            {
+              "value": "2020-02-02T00:00:00Z",
+              "family": "iim",
+              "primary_key": "Iptc.Application2.DateCreated",
+              "sources": [
+                {
+                  "base_key": "Iptc.Application2.DateCreated",
+                  "backend": "exiv2",
+                  "container": "embedded"
+                },
+                {
+                  "base_key": "Iptc.Application2.TimeCreated",
                   "backend": "exiv2",
                   "container": "embedded"
                 }

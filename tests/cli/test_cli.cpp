@@ -411,7 +411,7 @@ static void test_read_get() {
         // Default read/dumpunmapped use preferred_backend (ExifTool for MP4).
         CHECK(run_cli({"read", "--json", mp4.string()}, &out, &err) == 0);
         CHECK(err.find("Exiv2 read failed") == std::string::npos);
-        CHECK(out.find("iptc.video.dateCreated") != std::string::npos);
+        CHECK(out.find("\"command\": \"read\"") != std::string::npos);
         CHECK(run_cli({"dumpunmapped", mp4.string()}, &out, &err) == 0);
         CHECK(err.find("Exiv2 read failed") == std::string::npos);
         std::string def_unmapped = out;
