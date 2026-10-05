@@ -1,0 +1,1041 @@
+{
+  "schema_version": 2,
+  "command": "map",
+  "query": "locationCreated",
+  "properties": [
+    {
+      "layers": {
+        "id": "iptc.photo.locationCreated",
+        "definition": {
+          "id": "iptc.photo.locationCreated",
+          "standard": "IPTC Photo Metadata",
+          "standard_version": "2025.1",
+          "schema": "Extension 1.9",
+          "standard_property_name": "Location Created",
+          "datatype": "structure_list",
+          "cardinality": "many",
+          "representations": {
+            "xmp_namespace": "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+            "xmp_property": "Iptc4xmpExt:LocationCreated",
+            "iim_dataset": "",
+            "exif_tag": "",
+            "quicktime_key": "",
+            "ebucore": ""
+          }
+        },
+        "struct_fields": [
+          {
+            "id": "iptc.photo.struct.Location.city",
+            "name": "city",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:City",
+            "et_tag": "City",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.photo.struct.Location.countryCode",
+            "name": "countryCode",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:CountryCode",
+            "et_tag": "CountryCode",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.photo.struct.Location.countryName",
+            "name": "countryName",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:CountryName",
+            "et_tag": "CountryName",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.photo.struct.Location.gpsAltitude",
+            "name": "gpsAltitude",
+            "struct_name": "Location",
+            "xmp_property": "exif:GPSAltitude",
+            "et_tag": "GPSAltitude",
+            "exif_tag": "GPS:GPSAltitude"
+          },
+          {
+            "id": "iptc.photo.struct.Location.gpsAltitudeRef",
+            "name": "gpsAltitudeRef",
+            "struct_name": "Location",
+            "xmp_property": "exif:GPSAltitudeRef",
+            "et_tag": "GPSAltitudeRef",
+            "exif_tag": "GPS:GPSAltitudeRef"
+          },
+          {
+            "id": "iptc.photo.struct.Location.gpsLatitude",
+            "name": "gpsLatitude",
+            "struct_name": "Location",
+            "xmp_property": "exif:GPSLatitude",
+            "et_tag": "GPSLatitude",
+            "exif_tag": "GPS:GPSLatitude+GPS:GPSLatitudeRef"
+          },
+          {
+            "id": "iptc.photo.struct.Location.gpsLongitude",
+            "name": "gpsLongitude",
+            "struct_name": "Location",
+            "xmp_property": "exif:GPSLongitude",
+            "et_tag": "GPSLongitude",
+            "exif_tag": "GPS:GPSLongitude+GPS:GPSLongitudeRef"
+          },
+          {
+            "id": "iptc.photo.struct.Location.identifiers",
+            "name": "identifiers",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:LocationId",
+            "et_tag": "LocationId",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.photo.struct.Location.name",
+            "name": "name",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:LocationName",
+            "et_tag": "LocationName",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.photo.struct.Location.provinceState",
+            "name": "provinceState",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:ProvinceState",
+            "et_tag": "ProvinceState",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.photo.struct.Location.sublocation",
+            "name": "sublocation",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:Sublocation",
+            "et_tag": "Sublocation",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.photo.struct.Location.worldRegion",
+            "name": "worldRegion",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:WorldRegion",
+            "et_tag": "WorldRegion",
+            "exif_tag": ""
+          }
+        ],
+        "representations": [
+          {
+            "family": "xmp",
+            "key": "Iptc4xmpExt:LocationCreated",
+            "path": "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:City",
+            "path": "iptc.photo.struct.Location.city",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:CountryCode",
+            "path": "iptc.photo.struct.Location.countryCode",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:CountryName",
+            "path": "iptc.photo.struct.Location.countryName",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "exif:GPSAltitude",
+            "path": "iptc.photo.struct.Location.gpsAltitude",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 1,
+            "write_target": true
+          },
+          {
+            "family": "exif",
+            "key": "GPS:GPSAltitude",
+            "path": "iptc.photo.struct.Location.gpsAltitude",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "exif:GPSAltitudeRef",
+            "path": "iptc.photo.struct.Location.gpsAltitudeRef",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 1,
+            "write_target": true
+          },
+          {
+            "family": "exif",
+            "key": "GPS:GPSAltitudeRef",
+            "path": "iptc.photo.struct.Location.gpsAltitudeRef",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "exif:GPSLatitude",
+            "path": "iptc.photo.struct.Location.gpsLatitude",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 1,
+            "write_target": true
+          },
+          {
+            "family": "exif",
+            "key": "GPS:GPSLatitude+GPS:GPSLatitudeRef",
+            "path": "iptc.photo.struct.Location.gpsLatitude",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "exif:GPSLongitude",
+            "path": "iptc.photo.struct.Location.gpsLongitude",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 1,
+            "write_target": true
+          },
+          {
+            "family": "exif",
+            "key": "GPS:GPSLongitude+GPS:GPSLongitudeRef",
+            "path": "iptc.photo.struct.Location.gpsLongitude",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:LocationId",
+            "path": "iptc.photo.struct.Location.identifiers",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:LocationName",
+            "path": "iptc.photo.struct.Location.name",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:ProvinceState",
+            "path": "iptc.photo.struct.Location.provinceState",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:Sublocation",
+            "path": "iptc.photo.struct.Location.sublocation",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:WorldRegion",
+            "path": "iptc.photo.struct.Location.worldRegion",
+            "citation": "IPTC Photo Metadata 2025.1",
+            "read_rank": 0,
+            "write_target": true
+          }
+        ],
+        "casts": []
+      },
+      "cross_media": {
+        "accessor": "locationCreated",
+        "tier": 3,
+        "other": {
+          "id": "iptc.video.locationShot",
+          "definition": {
+            "id": "iptc.video.locationShot",
+            "standard": "IPTC Video Metadata Hub",
+            "standard_version": "1.7",
+            "schema": "Descriptive",
+            "standard_property_name": "Location Shot",
+            "datatype": "structure_list",
+            "cardinality": "many",
+            "representations": {
+              "xmp_namespace": "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+              "xmp_property": "Iptc4xmpExt:LocationCreated",
+              "iim_dataset": "",
+              "exif_tag": "",
+              "quicktime_key": "See location structure + com.apple.quicktime.location.role=\"0\"",
+              "ebucore": "coverage/spatial/location/@typeLink=\"ivqu:locationShot\" or @typeLabel=\"Location Shot\"/name or use ebucore location structure for more granularity"
+            }
+          },
+          "struct_fields": [
+            {
+              "id": "iptc.video.struct.Location.city",
+              "name": "city",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:City",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.countryCode",
+              "name": "countryCode",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:CountryCode",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.countryName",
+              "name": "countryName",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:CountryName",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.gpsAltitude",
+              "name": "gpsAltitude",
+              "struct_name": "Location",
+              "xmp_property": "exif:GPSAltitude",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.gpsLatitude",
+              "name": "gpsLatitude",
+              "struct_name": "Location",
+              "xmp_property": "exif:GPSLatitude",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.gpsLongitude",
+              "name": "gpsLongitude",
+              "struct_name": "Location",
+              "xmp_property": "exif:GPSLongitude",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.identifiers",
+              "name": "identifiers",
+              "struct_name": "Location",
+              "xmp_property": "xmp:Identifier",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.name",
+              "name": "name",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:LocationName",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.provinceState",
+              "name": "provinceState",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:ProvinceState",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.sublocation",
+              "name": "sublocation",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:Sublocation",
+              "et_tag": "",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.video.struct.Location.worldRegion",
+              "name": "worldRegion",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:WorldRegion",
+              "et_tag": "",
+              "exif_tag": ""
+            }
+          ],
+          "representations": [
+            {
+              "family": "xmp",
+              "key": "Iptc4xmpExt:LocationCreated",
+              "path": "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "quicktime",
+              "key": "See location structure + com.apple.quicktime.location.role=\"0\"",
+              "path": "",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 3,
+              "write_target": true
+            },
+            {
+              "family": "ebucore",
+              "key": "coverage/spatial/location/@typeLink=\"ivqu:locationShot\" or @typeLabel=\"Location Shot\"/name or use ebucore location structure for more granularity",
+              "path": "",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 4,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:City",
+              "path": "iptc.video.struct.Location.city",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:CountryCode",
+              "path": "iptc.video.struct.Location.countryCode",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:CountryName",
+              "path": "iptc.video.struct.Location.countryName",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "exif:GPSAltitude",
+              "path": "iptc.video.struct.Location.gpsAltitude",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "exif:GPSLatitude",
+              "path": "iptc.video.struct.Location.gpsLatitude",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "exif:GPSLongitude",
+              "path": "iptc.video.struct.Location.gpsLongitude",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "xmp:Identifier",
+              "path": "iptc.video.struct.Location.identifiers",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:LocationName",
+              "path": "iptc.video.struct.Location.name",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:ProvinceState",
+              "path": "iptc.video.struct.Location.provinceState",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:Sublocation",
+              "path": "iptc.video.struct.Location.sublocation",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:WorldRegion",
+              "path": "iptc.video.struct.Location.worldRegion",
+              "citation": "IPTC Video Metadata Hub 1.7",
+              "read_rank": 0,
+              "write_target": true
+            }
+          ],
+          "casts": [
+            {
+              "group": "capturePosition",
+              "direction": "down",
+              "partner": "QuickTime.Keys.location.ISO6709",
+              "heuristic": "H1",
+              "citation": "First locationShot GPS (H1) to Keys location.ISO6709 and UserData GPSCoordinates"
+            },
+            {
+              "group": "capturePosition",
+              "direction": "up",
+              "partner": "Exif.GPSInfo.GPSLatitude",
+              "heuristic": "H10",
+              "citation": "EXIF GPS IFD combined with latitude/longitude refs (H10); extra GPS tags remain unmapped (H20)"
+            },
+            {
+              "group": "capturePosition",
+              "direction": "up",
+              "partner": "QuickTime.Keys.location.ISO6709",
+              "heuristic": "H11",
+              "citation": "Apple QuickTime Keys location.ISO6709; H18 role 0 or absent only"
+            },
+            {
+              "group": "capturePosition",
+              "direction": "up",
+              "partner": "QuickTime.UserData.GPSCoordinates",
+              "heuristic": "H11",
+              "citation": "QuickTime UserData copyright-xyz / GPSCoordinates"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "layers": {
+        "id": "iptc.video.locationShot",
+        "definition": {
+          "id": "iptc.video.locationShot",
+          "standard": "IPTC Video Metadata Hub",
+          "standard_version": "1.7",
+          "schema": "Descriptive",
+          "standard_property_name": "Location Shot",
+          "datatype": "structure_list",
+          "cardinality": "many",
+          "representations": {
+            "xmp_namespace": "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+            "xmp_property": "Iptc4xmpExt:LocationCreated",
+            "iim_dataset": "",
+            "exif_tag": "",
+            "quicktime_key": "See location structure + com.apple.quicktime.location.role=\"0\"",
+            "ebucore": "coverage/spatial/location/@typeLink=\"ivqu:locationShot\" or @typeLabel=\"Location Shot\"/name or use ebucore location structure for more granularity"
+          }
+        },
+        "struct_fields": [
+          {
+            "id": "iptc.video.struct.Location.city",
+            "name": "city",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:City",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.countryCode",
+            "name": "countryCode",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:CountryCode",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.countryName",
+            "name": "countryName",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:CountryName",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.gpsAltitude",
+            "name": "gpsAltitude",
+            "struct_name": "Location",
+            "xmp_property": "exif:GPSAltitude",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.gpsLatitude",
+            "name": "gpsLatitude",
+            "struct_name": "Location",
+            "xmp_property": "exif:GPSLatitude",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.gpsLongitude",
+            "name": "gpsLongitude",
+            "struct_name": "Location",
+            "xmp_property": "exif:GPSLongitude",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.identifiers",
+            "name": "identifiers",
+            "struct_name": "Location",
+            "xmp_property": "xmp:Identifier",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.name",
+            "name": "name",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:LocationName",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.provinceState",
+            "name": "provinceState",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:ProvinceState",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.sublocation",
+            "name": "sublocation",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:Sublocation",
+            "et_tag": "",
+            "exif_tag": ""
+          },
+          {
+            "id": "iptc.video.struct.Location.worldRegion",
+            "name": "worldRegion",
+            "struct_name": "Location",
+            "xmp_property": "Iptc4xmpExt:WorldRegion",
+            "et_tag": "",
+            "exif_tag": ""
+          }
+        ],
+        "representations": [
+          {
+            "family": "xmp",
+            "key": "Iptc4xmpExt:LocationCreated",
+            "path": "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "quicktime",
+            "key": "See location structure + com.apple.quicktime.location.role=\"0\"",
+            "path": "",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 3,
+            "write_target": true
+          },
+          {
+            "family": "ebucore",
+            "key": "coverage/spatial/location/@typeLink=\"ivqu:locationShot\" or @typeLabel=\"Location Shot\"/name or use ebucore location structure for more granularity",
+            "path": "",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 4,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:City",
+            "path": "iptc.video.struct.Location.city",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:CountryCode",
+            "path": "iptc.video.struct.Location.countryCode",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:CountryName",
+            "path": "iptc.video.struct.Location.countryName",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "exif:GPSAltitude",
+            "path": "iptc.video.struct.Location.gpsAltitude",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "exif:GPSLatitude",
+            "path": "iptc.video.struct.Location.gpsLatitude",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "exif:GPSLongitude",
+            "path": "iptc.video.struct.Location.gpsLongitude",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "xmp:Identifier",
+            "path": "iptc.video.struct.Location.identifiers",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:LocationName",
+            "path": "iptc.video.struct.Location.name",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:ProvinceState",
+            "path": "iptc.video.struct.Location.provinceState",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:Sublocation",
+            "path": "iptc.video.struct.Location.sublocation",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          },
+          {
+            "family": "struct_field",
+            "key": "Iptc4xmpExt:WorldRegion",
+            "path": "iptc.video.struct.Location.worldRegion",
+            "citation": "IPTC Video Metadata Hub 1.7",
+            "read_rank": 0,
+            "write_target": true
+          }
+        ],
+        "casts": [
+          {
+            "group": "capturePosition",
+            "direction": "down",
+            "partner": "QuickTime.Keys.location.ISO6709",
+            "heuristic": "H1",
+            "citation": "First locationShot GPS (H1) to Keys location.ISO6709 and UserData GPSCoordinates"
+          },
+          {
+            "group": "capturePosition",
+            "direction": "up",
+            "partner": "Exif.GPSInfo.GPSLatitude",
+            "heuristic": "H10",
+            "citation": "EXIF GPS IFD combined with latitude/longitude refs (H10); extra GPS tags remain unmapped (H20)"
+          },
+          {
+            "group": "capturePosition",
+            "direction": "up",
+            "partner": "QuickTime.Keys.location.ISO6709",
+            "heuristic": "H11",
+            "citation": "Apple QuickTime Keys location.ISO6709; H18 role 0 or absent only"
+          },
+          {
+            "group": "capturePosition",
+            "direction": "up",
+            "partner": "QuickTime.UserData.GPSCoordinates",
+            "heuristic": "H11",
+            "citation": "QuickTime UserData copyright-xyz / GPSCoordinates"
+          }
+        ]
+      },
+      "cross_media": {
+        "accessor": "locationCreated",
+        "tier": 3,
+        "other": {
+          "id": "iptc.photo.locationCreated",
+          "definition": {
+            "id": "iptc.photo.locationCreated",
+            "standard": "IPTC Photo Metadata",
+            "standard_version": "2025.1",
+            "schema": "Extension 1.9",
+            "standard_property_name": "Location Created",
+            "datatype": "structure_list",
+            "cardinality": "many",
+            "representations": {
+              "xmp_namespace": "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+              "xmp_property": "Iptc4xmpExt:LocationCreated",
+              "iim_dataset": "",
+              "exif_tag": "",
+              "quicktime_key": "",
+              "ebucore": ""
+            }
+          },
+          "struct_fields": [
+            {
+              "id": "iptc.photo.struct.Location.city",
+              "name": "city",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:City",
+              "et_tag": "City",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.photo.struct.Location.countryCode",
+              "name": "countryCode",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:CountryCode",
+              "et_tag": "CountryCode",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.photo.struct.Location.countryName",
+              "name": "countryName",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:CountryName",
+              "et_tag": "CountryName",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.photo.struct.Location.gpsAltitude",
+              "name": "gpsAltitude",
+              "struct_name": "Location",
+              "xmp_property": "exif:GPSAltitude",
+              "et_tag": "GPSAltitude",
+              "exif_tag": "GPS:GPSAltitude"
+            },
+            {
+              "id": "iptc.photo.struct.Location.gpsAltitudeRef",
+              "name": "gpsAltitudeRef",
+              "struct_name": "Location",
+              "xmp_property": "exif:GPSAltitudeRef",
+              "et_tag": "GPSAltitudeRef",
+              "exif_tag": "GPS:GPSAltitudeRef"
+            },
+            {
+              "id": "iptc.photo.struct.Location.gpsLatitude",
+              "name": "gpsLatitude",
+              "struct_name": "Location",
+              "xmp_property": "exif:GPSLatitude",
+              "et_tag": "GPSLatitude",
+              "exif_tag": "GPS:GPSLatitude+GPS:GPSLatitudeRef"
+            },
+            {
+              "id": "iptc.photo.struct.Location.gpsLongitude",
+              "name": "gpsLongitude",
+              "struct_name": "Location",
+              "xmp_property": "exif:GPSLongitude",
+              "et_tag": "GPSLongitude",
+              "exif_tag": "GPS:GPSLongitude+GPS:GPSLongitudeRef"
+            },
+            {
+              "id": "iptc.photo.struct.Location.identifiers",
+              "name": "identifiers",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:LocationId",
+              "et_tag": "LocationId",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.photo.struct.Location.name",
+              "name": "name",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:LocationName",
+              "et_tag": "LocationName",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.photo.struct.Location.provinceState",
+              "name": "provinceState",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:ProvinceState",
+              "et_tag": "ProvinceState",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.photo.struct.Location.sublocation",
+              "name": "sublocation",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:Sublocation",
+              "et_tag": "Sublocation",
+              "exif_tag": ""
+            },
+            {
+              "id": "iptc.photo.struct.Location.worldRegion",
+              "name": "worldRegion",
+              "struct_name": "Location",
+              "xmp_property": "Iptc4xmpExt:WorldRegion",
+              "et_tag": "WorldRegion",
+              "exif_tag": ""
+            }
+          ],
+          "representations": [
+            {
+              "family": "xmp",
+              "key": "Iptc4xmpExt:LocationCreated",
+              "path": "http://iptc.org/std/Iptc4xmpExt/2008-02-29/",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:City",
+              "path": "iptc.photo.struct.Location.city",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:CountryCode",
+              "path": "iptc.photo.struct.Location.countryCode",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:CountryName",
+              "path": "iptc.photo.struct.Location.countryName",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "exif:GPSAltitude",
+              "path": "iptc.photo.struct.Location.gpsAltitude",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 1,
+              "write_target": true
+            },
+            {
+              "family": "exif",
+              "key": "GPS:GPSAltitude",
+              "path": "iptc.photo.struct.Location.gpsAltitude",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "exif:GPSAltitudeRef",
+              "path": "iptc.photo.struct.Location.gpsAltitudeRef",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 1,
+              "write_target": true
+            },
+            {
+              "family": "exif",
+              "key": "GPS:GPSAltitudeRef",
+              "path": "iptc.photo.struct.Location.gpsAltitudeRef",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "exif:GPSLatitude",
+              "path": "iptc.photo.struct.Location.gpsLatitude",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 1,
+              "write_target": true
+            },
+            {
+              "family": "exif",
+              "key": "GPS:GPSLatitude+GPS:GPSLatitudeRef",
+              "path": "iptc.photo.struct.Location.gpsLatitude",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "exif:GPSLongitude",
+              "path": "iptc.photo.struct.Location.gpsLongitude",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 1,
+              "write_target": true
+            },
+            {
+              "family": "exif",
+              "key": "GPS:GPSLongitude+GPS:GPSLongitudeRef",
+              "path": "iptc.photo.struct.Location.gpsLongitude",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:LocationId",
+              "path": "iptc.photo.struct.Location.identifiers",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:LocationName",
+              "path": "iptc.photo.struct.Location.name",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:ProvinceState",
+              "path": "iptc.photo.struct.Location.provinceState",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:Sublocation",
+              "path": "iptc.photo.struct.Location.sublocation",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            },
+            {
+              "family": "struct_field",
+              "key": "Iptc4xmpExt:WorldRegion",
+              "path": "iptc.photo.struct.Location.worldRegion",
+              "citation": "IPTC Photo Metadata 2025.1",
+              "read_rank": 0,
+              "write_target": true
+            }
+          ],
+          "casts": []
+        }
+      }
+    }
+  ]
+}

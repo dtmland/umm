@@ -1,0 +1,79 @@
+QUERY  locationCreated
+
+iptc.photo.locationCreated
+DEFINITION
+  id                        iptc.photo.locationCreated
+  standard                  IPTC Photo Metadata
+  standard_version          2025.1
+  schema                    Extension 1.9
+  standard_property_name    Location Created
+  datatype                  structure_list
+  cardinality               many
+REPRESENTATIONS
+  xmp  Iptc4xmpExt:LocationCreated  http://iptc.org/std/Iptc4xmpExt/2008-02-29/  rank 0  write
+  struct_field  Iptc4xmpExt:City  iptc.photo.struct.Location.city  rank 0  write
+  struct_field  Iptc4xmpExt:CountryCode  iptc.photo.struct.Location.countryCode  rank 0  write
+  struct_field  Iptc4xmpExt:CountryName  iptc.photo.struct.Location.countryName  rank 0  write
+  struct_field  exif:GPSAltitude  iptc.photo.struct.Location.gpsAltitude  rank 1  write
+  exif  GPS:GPSAltitude  iptc.photo.struct.Location.gpsAltitude  rank 0  write
+  struct_field  exif:GPSAltitudeRef  iptc.photo.struct.Location.gpsAltitudeRef  rank 1  write
+  exif  GPS:GPSAltitudeRef  iptc.photo.struct.Location.gpsAltitudeRef  rank 0  write
+  struct_field  exif:GPSLatitude  iptc.photo.struct.Location.gpsLatitude  rank 1  write
+  exif  GPS:GPSLatitude+GPS:GPSLatitudeRef  iptc.photo.struct.Location.gpsLatitude  rank 0  write
+  struct_field  exif:GPSLongitude  iptc.photo.struct.Location.gpsLongitude  rank 1  write
+  exif  GPS:GPSLongitude+GPS:GPSLongitudeRef  iptc.photo.struct.Location.gpsLongitude  rank 0  write
+  struct_field  Iptc4xmpExt:LocationId  iptc.photo.struct.Location.identifiers  rank 0  write
+  struct_field  Iptc4xmpExt:LocationName  iptc.photo.struct.Location.name  rank 0  write
+  struct_field  Iptc4xmpExt:ProvinceState  iptc.photo.struct.Location.provinceState  rank 0  write
+  struct_field  Iptc4xmpExt:Sublocation  iptc.photo.struct.Location.sublocation  rank 0  write
+  struct_field  Iptc4xmpExt:WorldRegion  iptc.photo.struct.Location.worldRegion  rank 0  write
+STRUCT_FIELDS
+  iptc.photo.struct.Location.city  city  Location  Iptc4xmpExt:City  City
+  iptc.photo.struct.Location.countryCode  countryCode  Location  Iptc4xmpExt:CountryCode  CountryCode
+  iptc.photo.struct.Location.countryName  countryName  Location  Iptc4xmpExt:CountryName  CountryName
+  iptc.photo.struct.Location.gpsAltitude  gpsAltitude  Location  exif:GPSAltitude  GPSAltitude  GPS:GPSAltitude
+  iptc.photo.struct.Location.gpsAltitudeRef  gpsAltitudeRef  Location  exif:GPSAltitudeRef  GPSAltitudeRef  GPS:GPSAltitudeRef
+  iptc.photo.struct.Location.gpsLatitude  gpsLatitude  Location  exif:GPSLatitude  GPSLatitude  GPS:GPSLatitude+GPS:GPSLatitudeRef
+  iptc.photo.struct.Location.gpsLongitude  gpsLongitude  Location  exif:GPSLongitude  GPSLongitude  GPS:GPSLongitude+GPS:GPSLongitudeRef
+  iptc.photo.struct.Location.identifiers  identifiers  Location  Iptc4xmpExt:LocationId  LocationId
+  iptc.photo.struct.Location.name  name  Location  Iptc4xmpExt:LocationName  LocationName
+  iptc.photo.struct.Location.provinceState  provinceState  Location  Iptc4xmpExt:ProvinceState  ProvinceState
+  iptc.photo.struct.Location.sublocation  sublocation  Location  Iptc4xmpExt:Sublocation  Sublocation
+  iptc.photo.struct.Location.worldRegion  worldRegion  Location  Iptc4xmpExt:WorldRegion  WorldRegion
+
+iptc.video.locationShot
+DEFINITION
+  id                        iptc.video.locationShot
+  standard                  IPTC Video Metadata Hub
+  standard_version          1.7
+  schema                    Descriptive
+  standard_property_name    Location Shot
+  datatype                  structure_list
+  cardinality               many
+REPRESENTATIONS
+  xmp  Iptc4xmpExt:LocationCreated  http://iptc.org/std/Iptc4xmpExt/2008-02-29/  rank 0  write
+  quicktime  See location structure + com.apple.quicktime.location.role="0"  rank 3  write
+  ebucore  coverage/spatial/location/@typeLink="ivqu:locationShot" or @typeLabel="Location Shot"/name or use ebucore location structure for more granularity  rank 4  write
+  struct_field  Iptc4xmpExt:City  iptc.video.struct.Location.city  rank 0  write
+  struct_field  Iptc4xmpExt:CountryCode  iptc.video.struct.Location.countryCode  rank 0  write
+  struct_field  Iptc4xmpExt:CountryName  iptc.video.struct.Location.countryName  rank 0  write
+  struct_field  exif:GPSAltitude  iptc.video.struct.Location.gpsAltitude  rank 0  write
+  struct_field  exif:GPSLatitude  iptc.video.struct.Location.gpsLatitude  rank 0  write
+  struct_field  exif:GPSLongitude  iptc.video.struct.Location.gpsLongitude  rank 0  write
+  struct_field  xmp:Identifier  iptc.video.struct.Location.identifiers  rank 0  write
+  struct_field  Iptc4xmpExt:LocationName  iptc.video.struct.Location.name  rank 0  write
+  struct_field  Iptc4xmpExt:ProvinceState  iptc.video.struct.Location.provinceState  rank 0  write
+  struct_field  Iptc4xmpExt:Sublocation  iptc.video.struct.Location.sublocation  rank 0  write
+  struct_field  Iptc4xmpExt:WorldRegion  iptc.video.struct.Location.worldRegion  rank 0  write
+STRUCT_FIELDS
+  iptc.video.struct.Location.city  city  Location  Iptc4xmpExt:City
+  iptc.video.struct.Location.countryCode  countryCode  Location  Iptc4xmpExt:CountryCode
+  iptc.video.struct.Location.countryName  countryName  Location  Iptc4xmpExt:CountryName
+  iptc.video.struct.Location.gpsAltitude  gpsAltitude  Location  exif:GPSAltitude
+  iptc.video.struct.Location.gpsLatitude  gpsLatitude  Location  exif:GPSLatitude
+  iptc.video.struct.Location.gpsLongitude  gpsLongitude  Location  exif:GPSLongitude
+  iptc.video.struct.Location.identifiers  identifiers  Location  xmp:Identifier
+  iptc.video.struct.Location.name  name  Location  Iptc4xmpExt:LocationName
+  iptc.video.struct.Location.provinceState  provinceState  Location  Iptc4xmpExt:ProvinceState
+  iptc.video.struct.Location.sublocation  sublocation  Location  Iptc4xmpExt:Sublocation
+  iptc.video.struct.Location.worldRegion  worldRegion  Location  Iptc4xmpExt:WorldRegion

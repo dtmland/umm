@@ -69,6 +69,11 @@ umm::ReadOptions read_options(const ParsedArgs& args) {
   return options;
 }
 
+Json entries_json(const std::vector<umm::BaseEntry>& entries);
+std::string format_entries(const std::vector<umm::BaseEntry>& entries);
+Json cast_candidates_json(const std::vector<umm::CastCandidate>& cs);
+std::string format_cast_candidates(const std::vector<umm::CastCandidate>& cs);
+
 const char* cast_direction_name(umm::CastDirection d) noexcept {
   switch (d) {
     case umm::CastDirection::up:
@@ -123,6 +128,281 @@ std::vector<std::string> split_groups(const std::string& text) {
   }
   flush();
   return out;
+}
+
+const char* datatype_name(umm::Datatype d) noexcept {
+  switch (d) {
+    case umm::Datatype::text:
+      return "text";
+    case umm::Datatype::lang_alt:
+      return "lang_alt";
+    case umm::Datatype::text_list:
+      return "text_list";
+    case umm::Datatype::integer:
+      return "integer";
+    case umm::Datatype::real:
+      return "real";
+    case umm::Datatype::boolean:
+      return "boolean";
+    case umm::Datatype::rational:
+      return "rational";
+    case umm::Datatype::date_time:
+      return "date_time";
+    case umm::Datatype::structure:
+      return "structure";
+    case umm::Datatype::structure_list:
+      return "structure_list";
+  }
+  return "text";
+}
+
+const char* cardinality_name(umm::Cardinality c) noexcept {
+  switch (c) {
+    case umm::Cardinality::one:
+      return "one";
+    case umm::Cardinality::many:
+      return "many";
+  }
+  return "one";
+}
+
+struct LayerFilter {
+  bool representations{true};
+  bool casts{true};
+  bool cross_media{true};
+};
+
+std::optional<LayerFilter> parse_layers(const std::string& text, std::string* error) {
+  LayerFilter out{false, false, false};
+  const std::vector<std::string> names = split_groups(text);
+  if (names.empty()) {
+    if (error) *error = "--layers needs a comma-separated list of representations, casts, cross-media";
+    return std::nullopt;
+  }
+  for (const std::string& name : names) {
+    if (name == "representations")
+      out.representations = true;
+    else if (name == "casts")
+      out.casts = true;
+    else if (name == "cross-media")
+      out.cross_media = true;
+    else {
+      if (error)
+        *error = "unknown layer '" + name + "' (expected representations, casts, cross-media)";
+      return std::nullopt;
+    }
+  }
+  return out;
+}
+
+Json property_value_json(const umm::PropertyValue& property) {
+  Json::Array srcs;
+  for (const umm::SourceRef& s : property.sources) {
+    srcs.emplace_back(Json(Json::Object{{"base_key", Json(s.base_key)},
+                                        {"backend", Json(s.backend)},
+                                        {"container", Json(s.container)}}));
+  }
+  Json::Object o{{"value", value_to_json(property.value)},
+                 {"resolution", Json(resolution_name(property.resolution))},
+                 {"sources", Json(std::move(srcs))}};
+  if (!property.preferred_source.empty())
+    o.emplace_back("preferred_source", Json(property.preferred_source));
+  return Json(std::move(o));
+}
+
+Json definition_json(const umm::PropertyDef& def) {
+  Json::Object reps{{"xmp_namespace", Json(std::string(def.representations.xmp_namespace))},
+                    {"xmp_property", Json(std::string(def.representations.xmp_property))},
+                    {"iim_dataset", Json(std::string(def.representations.iim_dataset))},
+                    {"exif_tag", Json(std::string(def.representations.exif_tag))},
+                    {"quicktime_key", Json(std::string(def.representations.quicktime_key))},
+                    {"ebucore", Json(std::string(def.representations.ebucore))}};
+  return Json(Json::Object{{"id", Json(std::string(def.id))},
+                           {"standard", Json(std::string(def.standard))},
+                           {"standard_version", Json(std::string(def.standard_version))},
+                           {"schema", Json(std::string(def.schema))},
+                           {"standard_property_name", Json(std::string(def.standard_property_name))},
+                           {"datatype", Json(datatype_name(def.datatype))},
+                           {"cardinality", Json(cardinality_name(def.cardinality))},
+                           {"representations", Json(std::move(reps))}});
+}
+
+Json struct_fields_json(const std::vector<umm::StructFieldMap>& fields) {
+  Json::Array a;
+  for (const auto& f : fields) {
+    a.emplace_back(Json(Json::Object{{"id", Json(f.id)},
+                                     {"name", Json(f.name)},
+                                     {"struct_name", Json(f.struct_name)},
+                                     {"xmp_property", Json(f.xmp_property)},
+                                     {"et_tag", Json(f.et_tag)},
+                                     {"exif_tag", Json(f.exif_tag)}}));
+  }
+  return Json(std::move(a));
+}
+
+Json representations_json(const std::vector<umm::RepresentationMap>& reps) {
+  Json::Array a;
+  for (const auto& r : reps) {
+    Json::Object o{{"family", Json(r.family)},
+                   {"key", Json(r.key)},
+                   {"path", Json(r.path)},
+                   {"citation", Json(r.citation)},
+                   {"read_rank", Json(r.read_rank)},
+                   {"write_target", Json(r.write_target)}};
+    if (r.value) o.emplace_back("value", Json(*r.value));
+    a.emplace_back(Json(std::move(o)));
+  }
+  return Json(std::move(a));
+}
+
+Json casts_json(const std::vector<umm::CastLinkMap>& casts) {
+  Json::Array a;
+  for (const auto& c : casts) {
+    Json::Object o{{"group", Json(c.group)},
+                   {"direction", Json(cast_direction_name(c.direction))},
+                   {"partner", Json(c.partner)},
+                   {"heuristic", Json(c.heuristic)},
+                   {"citation", Json(c.citation)}};
+    if (c.status) o.emplace_back("status", Json(cast_status_name(*c.status)));
+    if (!c.source_preview.empty()) o.emplace_back("source_preview", Json(c.source_preview));
+    if (!c.target_preview.empty()) o.emplace_back("target_preview", Json(c.target_preview));
+    a.emplace_back(Json(std::move(o)));
+  }
+  return Json(std::move(a));
+}
+
+Json layers_json(const umm::PropertyLayers& layers, const LayerFilter& filter) {
+  Json::Object o{{"id", Json(layers.id)}, {"definition", definition_json(layers.definition)}};
+  if (filter.representations) {
+    o.emplace_back("struct_fields", struct_fields_json(layers.struct_fields));
+    o.emplace_back("representations", representations_json(layers.representations));
+  }
+  if (filter.casts) {
+    o.emplace_back("casts", casts_json(layers.casts));
+    if (!layers.cast_groups.empty())
+      o.emplace_back("cast_groups", cast_candidates_json(layers.cast_groups));
+  }
+  if (layers.value) o.emplace_back("value", property_value_json(*layers.value));
+  if (!layers.consumed.empty()) o.emplace_back("consumed", entries_json(layers.consumed));
+  return Json(std::move(o));
+}
+
+Json description_json(const umm::PropertyDescription& d, const LayerFilter& filter) {
+  Json::Object o{{"layers", layers_json(d.layers, filter)}};
+  if (filter.cross_media && d.cross_media) {
+    Json::Object cm{{"accessor", Json(d.cross_media->accessor)},
+                    {"tier", Json(d.cross_media->tier)}};
+    if (!d.cross_media->other.id.empty())
+      cm.emplace_back("other", layers_json(d.cross_media->other, filter));
+    o.emplace_back("cross_media", Json(std::move(cm)));
+  }
+  return Json(std::move(o));
+}
+
+Json property_map_json(const umm::PropertyMap& map, const LayerFilter& filter) {
+  Json::Array props;
+  for (const auto& p : map.properties) props.emplace_back(description_json(p, filter));
+  return Json(Json::Object{{"query", Json(map.query)}, {"properties", Json(std::move(props))}});
+}
+
+void format_kv(std::ostringstream& os, const std::string& indent, const std::string& key,
+               const std::string& value) {
+  os << indent << key;
+  for (std::size_t i = key.size(); i < 24; ++i) os << ' ';
+  os << "  " << value << "\n";
+}
+
+void format_definition(std::ostringstream& os, const umm::PropertyDef& def, const std::string& indent) {
+  os << indent << "DEFINITION\n";
+  format_kv(os, indent + "  ", "id", std::string(def.id));
+  format_kv(os, indent + "  ", "standard", std::string(def.standard));
+  format_kv(os, indent + "  ", "standard_version", std::string(def.standard_version));
+  format_kv(os, indent + "  ", "schema", std::string(def.schema));
+  format_kv(os, indent + "  ", "standard_property_name", std::string(def.standard_property_name));
+  format_kv(os, indent + "  ", "datatype", datatype_name(def.datatype));
+  format_kv(os, indent + "  ", "cardinality", cardinality_name(def.cardinality));
+}
+
+void format_layers_human(std::ostringstream& os, const umm::PropertyLayers& layers,
+                         const LayerFilter& filter, const std::string& indent) {
+  os << indent << layers.id << "\n";
+  format_definition(os, layers.definition, indent);
+  if (layers.value) {
+    os << indent << "VALUE\n";
+    format_kv(os, indent + "  ", "summary", value_summary(layers.value->value));
+    format_kv(os, indent + "  ", "resolution", resolution_name(layers.value->resolution));
+  }
+  if (!layers.consumed.empty()) {
+    os << indent << "CONSUMED\n";
+    os << indent << format_entries(layers.consumed);
+  }
+  if (filter.representations) {
+    os << indent << "REPRESENTATIONS\n";
+    if (layers.representations.empty()) {
+      os << indent << "  (none)\n";
+    } else {
+      for (const auto& r : layers.representations) {
+        std::string line = indent + "  " + r.family + "  " + r.key;
+        if (!r.path.empty()) line += "  " + r.path;
+        line += "  rank " + std::to_string(r.read_rank);
+        line += r.write_target ? "  write" : "  no-write";
+        if (r.value) line += "  " + *r.value;
+        os << line << "\n";
+      }
+    }
+    if (!layers.struct_fields.empty()) {
+      os << indent << "STRUCT_FIELDS\n";
+      for (const auto& f : layers.struct_fields) {
+        os << indent << "  " << f.id << "  " << f.name << "  " << f.struct_name;
+        if (!f.xmp_property.empty()) os << "  " << f.xmp_property;
+        if (!f.et_tag.empty()) os << "  " << f.et_tag;
+        if (!f.exif_tag.empty()) os << "  " << f.exif_tag;
+        os << "\n";
+      }
+    }
+  }
+  if (filter.casts) {
+    os << indent << "CASTS\n";
+    if (layers.casts.empty()) {
+      os << indent << "  (none)\n";
+    } else {
+      for (const auto& c : layers.casts) {
+        os << indent << "  " << c.group << "  " << cast_direction_name(c.direction) << "  "
+           << c.partner;
+        if (!c.heuristic.empty()) os << "  " << c.heuristic;
+        if (c.status) os << "  " << cast_status_name(*c.status);
+        os << "\n";
+      }
+    }
+    if (!layers.cast_groups.empty()) {
+      os << indent << "CAST_GROUPS\n";
+      os << format_cast_candidates(layers.cast_groups);
+    }
+  }
+}
+
+void format_description_human(std::ostringstream& os, const umm::PropertyDescription& d,
+                              const LayerFilter& filter) {
+  format_layers_human(os, d.layers, filter, "");
+  if (filter.cross_media && d.cross_media) {
+    os << "CROSS-MEDIA\n";
+    format_kv(os, "  ", "accessor", d.cross_media->accessor);
+    format_kv(os, "  ", "tier", std::to_string(d.cross_media->tier));
+    if (!d.cross_media->other.id.empty()) {
+      format_kv(os, "  ", "other", d.cross_media->other.id);
+      format_layers_human(os, d.cross_media->other, filter, "  ");
+    }
+  }
+}
+
+std::string format_property_map(const umm::PropertyMap& map, const LayerFilter& filter) {
+  std::ostringstream os;
+  os << "QUERY  " << map.query << "\n";
+  for (const auto& p : map.properties) {
+    os << "\n";
+    format_description_human(os, p, filter);
+  }
+  return os.str();
 }
 
 umm::CastOptions cast_options(const ParsedArgs& args) {
@@ -1421,12 +1701,52 @@ ExitCode run_cast(const ParsedArgs& args, std::ostream& out, std::ostream& err) 
   return summarize(failures);
 }
 
+ExitCode run_map(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
+  if (args.operands.empty() || args.operands.size() > 2) {
+    err << "umm map: expected PROPERTY [FILE]\n";
+    return ExitCode::usage;
+  }
+  LayerFilter filter;
+  auto layers = args.options.find("layers");
+  if (layers != args.options.end()) {
+    std::string error;
+    std::optional<LayerFilter> parsed = parse_layers(layers->second, &error);
+    if (!parsed) {
+      err << "umm map: " << error << "\n";
+      return ExitCode::usage;
+    }
+    filter = *parsed;
+  }
+  const std::string& property = args.operands[0];
+  auto describe_map = [&]() -> umm::Result<umm::PropertyMap> {
+    if (args.operands.size() != 2) return umm::describe(property);
+    fs::path file = args.operands[1];
+    umm::Result<void> pre = check_file(file);
+    if (!pre.ok()) return pre.error();
+    return umm::describe(property, file);
+  };
+  umm::Result<umm::PropertyMap> r = describe_map();
+  if (!r.ok()) {
+    err << "umm map: " << r.error().message << "\n";
+    return exit_code_for(r.error().code);
+  }
+  if (args.json) {
+    Json payload = property_map_json(r.value(), filter);
+    Json::Object extra;
+    if (const Json::Object* o = payload.as_object()) extra = *o;
+    out << make_document("map", {}, extra).dump() << "\n";
+    return ExitCode::ok;
+  }
+  out << format_property_map(r.value(), filter);
+  return ExitCode::ok;
+}
+
 }  // namespace
 
 ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& err) {
   const CommandSpec& cmd = *args.command;
   if (args.backend == "exiftool" && cmd.name != "doctor" && cmd.name != "setup" &&
-      cmd.name != "version") {
+      cmd.name != "version" && cmd.name != "map") {
     if (!exiftool_backend_available()) {
       ConfigParse cfg = load_config(current_platform(), process_env());
       std::string reason;
@@ -1448,6 +1768,7 @@ ExitCode run_command(const ParsedArgs& args, std::ostream& out, std::ostream& er
   if (cmd.name == "sync") return run_sync(args, out, err);
   if (cmd.name == "cast") return run_cast(args, out, err);
   if (cmd.name == "caps") return run_caps(args, out, err);
+  if (cmd.name == "map") return run_map(args, out, err);
   if (cmd.name == "geotag") return run_geotag(args, out, err);
   if (cmd.name == "doctor") return run_doctor(args, out, err);
   if (cmd.name == "setup") return run_setup(args, out, err);

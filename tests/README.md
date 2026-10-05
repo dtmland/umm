@@ -25,7 +25,8 @@ is a v1 non-goal).
 
 Stable human and JSON stdout for `version`, `caps JPEG`, and `read`/`get` on a
 generated still (plus `dumpunmapped`/`dumpall`/`conflicts` when libumm fixtures
-exist, and `cast` / `read --report-casts` on a `cityLegacy` JPEG) live in
+exist, `cast` / `read --report-casts` on a `cityLegacy` JPEG, and registry-only
+`map` for `locationCreated` / `iptc.photo.creator`) live in
 `tests/goldens/`. Comparisons:
 
 - Normalize CRLF to LF.
